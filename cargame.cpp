@@ -6,10 +6,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
-#include<cstdlib>
-#include<cmath>
+#include <cstdlib>
+#include <cmath>
 #include <math.h>
-#include<iomanip>
+#include <iomanip>
 #include <string>
 #include "GL/freeglut.h"
 #include "include/glaux.h"
@@ -30,6 +30,41 @@ bool buffer[256];
 
 AUX_RGBImageRec* square_img;
 unsigned int square_tex;
+
+AUX_RGBImageRec* metal_img;
+unsigned int metal_tex;
+
+AUX_RGBImageRec* lantern_img;
+unsigned int lantern_tex;
+
+void LoadAUXTextures(){
+	square_img = auxDIBImageLoad("sources\\paving_stone_texture.bmp");
+	glGenTextures(1, &square_tex);
+	glBindTexture(GL_TEXTURE_2D, square_tex);
+	gluBuild2DMipmaps(GL_TEXTURE_2D, 3,
+		square_img->sizeX,
+		square_img->sizeY,
+		GL_RGB, GL_UNSIGNED_BYTE,
+		square_img->data);
+
+	metal_img = auxDIBImageLoad("sources\\metal.bmp");
+	glGenTextures(1, &metal_tex);
+	glBindTexture(GL_TEXTURE_2D, metal_tex);
+	gluBuild2DMipmaps(GL_TEXTURE_2D, 3,
+		metal_img->sizeX,
+		metal_img->sizeY,
+		GL_RGB, GL_UNSIGNED_BYTE,
+		metal_img->data);
+
+	lantern_img = auxDIBImageLoad("sources\\lantern.bmp");
+	glGenTextures(1, &lantern_tex);
+	glBindTexture(GL_TEXTURE_2D, lantern_tex);
+	gluBuild2DMipmaps(GL_TEXTURE_2D, 3,
+		lantern_img->sizeX,
+		lantern_img->sizeY,
+		GL_RGB, GL_UNSIGNED_BYTE,
+		lantern_img->data);
+}
 
 void drawCubeSimplified(GLdouble size) {
 	glBegin(GL_QUADS);
@@ -70,15 +105,49 @@ void drawCubeSimplified(GLdouble size) {
 	glEnd();
 }
 
-
-void drawSquare() 
-{
+void drawLantern() {
 	glPushMatrix();
-	glScalef(1.0f, square_y_scale, 1.0f);
+	glRotatef(-90.0f, 1.0f, 0.0f, 0.0f);
+	GLUquadricObj* quadricObj;
+	quadricObj = gluNewQuadric();
+	glBindTexture(GL_TEXTURE_2D, metal_tex);
+	gluQuadricOrientation(quadricObj, GLU_OUTSIDE);
+	gluQuadricTexture(quadricObj, GL_TRUE);
+
+	gluCylinder(quadricObj, 2.0f, 2.0f, 45.0f, 30, 30);
+
+	//float emission[] = { 0.5, 0.5, 0.5, 1.0 };
+	//glMaterialfv(GL_FRONT, GL_EMISSION, emission);
+
+	GLfloat pos[] = { 1.0f,1.0f,1.0f,1.0f };
+	glLightfv(GL_DIFFUSE, GL_POSITION, pos);
+
+	glBindTexture(GL_TEXTURE_2D, lantern_tex);
+	gluQuadricOrientation(quadricObj, GLU_OUTSIDE);
+	gluQuadricTexture(quadricObj, GL_TRUE);
+
+	glTranslatef(0.0f, 0.0f, 45.0f);
+
+	gluCylinder(quadricObj, 3.0f, 3.0f, 5.0f, 30, 30);
+
+	gluDeleteQuadric(quadricObj);
+
+	glPopMatrix();
+}
+
+void drawSquare() {
+	glPushMatrix();
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
+	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	//drawing a square with paving stone texture
+	
+	glScalef(1.0f, square_y_scale, 1.0f);
 	glBindTexture(GL_TEXTURE_2D, square_tex);
 	drawCubeSimplified(square_size_raw / 2);
+	glPopMatrix();
+	//drawing lanterns
+	glPushMatrix();
+	drawLantern();
 	glPopMatrix();
 }
 
@@ -110,19 +179,13 @@ void drawCar()
 
 void Init(void) {
 	glEnable(GL_TEXTURE_2D);
+	//glEnable(GL_LIGHTING);
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glEnable(GL_DEPTH_TEST);
 	glDepthMask(GL_TRUE);
 	glDepthFunc(GL_LEQUAL);
 	glDepthRange(0.0f, 1.0f);
-	square_img = auxDIBImageLoad("sources\\paving_stone_texture.bmp");
-	glGenTextures(1, &square_tex);
-	glBindTexture(GL_TEXTURE_2D, square_tex);
-	gluBuild2DMipmaps(GL_TEXTURE_2D, 3,
-		square_img->sizeX,
-		square_img->sizeY,
-		GL_RGB, GL_UNSIGNED_BYTE,
-		square_img->data);
+	LoadAUXTextures();
 }
 
 void KeyHandler()
