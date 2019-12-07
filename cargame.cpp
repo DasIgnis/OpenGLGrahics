@@ -1,24 +1,18 @@
 #define _USE_MATH_DEFINES
+#define _CRT_SECURE_NO_WARNINGS
+
+#pragma comment(lib, "include/GLAUX.LIB")
 
 #include <stdio.h>
 #include <stdlib.h>
-#include<iostream>
+#include <iostream>
 #include<cstdlib>
 #include<cmath>
 #include <math.h>
 #include<iomanip>
+#include <string>
 #include "GL/freeglut.h"
-
-enum Movement
-{
-	Idle,
-	Forward,
-	Backward,
-	Leftward,
-	Rightward
-};
-
-static Movement car_move = Movement::Idle;
+#include "include/glaux.h"
 
 static double square_y_scale = 0.1, square_size_raw = 150;
 static double square_size = square_y_scale * square_size_raw;
@@ -34,27 +28,55 @@ double tail_center[]{ -(head_size + tail_size) /2, (tail_size - head_size)/2, 0 
 
 bool buffer[256];
 
-void updateMovement()
-{
-	if (car_center[0] - car_center[0] > 0)
-		car_move = Movement::Forward;
-	else if(car_center[0] - car_center[0] < 0)
-		car_move = Movement::Forward;
-	else if (car_rotate - car_rotate > 0)
-		car_move = Movement::Leftward;
-	else if (car_rotate - car_rotate < 0)
-		car_move = Movement::Rightward;
-	else
-		car_move = Movement::Idle;
+AUX_RGBImageRec* square_img;
+unsigned int square_tex;
+
+void drawCubeSimplified(GLdouble size) {
+	glBegin(GL_QUADS);
+	glTexCoord2d(0, 0); glVertex3d(-size, size, -size);
+	glTexCoord2d(1, 0); glVertex3d(size, size, -size);
+	glTexCoord2d(1, 1); glVertex3d(size, size, size);
+	glTexCoord2d(0, 1); glVertex3d(-size, size, size);
+	glEnd();
+	glBegin(GL_QUADS);
+	glTexCoord2d(0, 0); glVertex3d(-size, -size, -size);
+	glTexCoord2d(1, 0); glVertex3d(size, -size, -size);
+	glTexCoord2d(1, 1); glVertex3d(size, -size, size);
+	glTexCoord2d(0, 1); glVertex3d(-size, -size, size);
+	glEnd();
+	glBegin(GL_QUADS);
+	glTexCoord2d(0, 0); glVertex3d(size, size, -size);
+	glTexCoord2d(1, 0); glVertex3d(size, -size, -size);
+	glTexCoord2d(1, 1); glVertex3d(size, -size, size);
+	glTexCoord2d(0, 1); glVertex3d(size, size, size);
+	glEnd();
+	glBegin(GL_QUADS);
+	glTexCoord2d(0, 0); glVertex3d(-size, size, -size);
+	glTexCoord2d(1, 0); glVertex3d(-size, -size, -size);
+	glTexCoord2d(1, 1); glVertex3d(-size, -size, size);
+	glTexCoord2d(0, 1); glVertex3d(-size, size, size);
+	glEnd();
+	glBegin(GL_QUADS);
+	glTexCoord2d(0, 0); glVertex3d(-size, size, size);
+	glTexCoord2d(1, 0); glVertex3d(size, size, size);
+	glTexCoord2d(1, 1); glVertex3d(size, -size, size);
+	glTexCoord2d(0, 1); glVertex3d(-size, -size, size);
+	glEnd();
+	glBegin(GL_QUADS);
+	glTexCoord2d(0, 0); glVertex3d(-size, size, -size);
+	glTexCoord2d(1, 0); glVertex3d(size, size, -size);
+	glTexCoord2d(1, 1); glVertex3d(size, -size, -size);
+	glTexCoord2d(0, 1); glVertex3d(-size, -size, -size);
+	glEnd();
 }
 
 
 void drawSquare() {
-	glPushMatrix();
 	glScalef(1.0f, square_y_scale, 1.0f);
-	glColor3ub(255, 0, 0);
-	glutSolidCube(square_size_raw);
-	glPopMatrix();
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
+	glBindTexture(GL_TEXTURE_2D, square_tex);
+	drawCubeSimplified(square_size_raw / 2);
 }
 
 double degToRad(double deg)
@@ -84,6 +106,7 @@ void drawCar()
 }
 
 void Init(void) {
+	glEnable(GL_TEXTURE_2D);
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glEnable(GL_DEPTH_TEST);
 	glDepthMask(GL_TRUE);
@@ -114,6 +137,15 @@ void KeyHandler()
 	}
 	else
 		car_side_speed = 0;
+
+	square_img = auxDIBImageLoad("sources\\paving_stone_texture.bmp");
+	glGenTextures(1, &square_tex);
+	glBindTexture(GL_TEXTURE_2D, square_tex);
+	gluBuild2DMipmaps(GL_TEXTURE_2D, 3,
+		square_img->sizeX,
+		square_img->sizeY,
+		GL_RGB, GL_UNSIGNED_BYTE,
+		square_img->data);
 }
 
 void Update(void) {
