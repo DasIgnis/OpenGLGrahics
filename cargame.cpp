@@ -14,7 +14,7 @@
 #include "GL/freeglut.h"
 #include "include/glaux.h"
 
-static double square_y_scale = 0.1, square_size_raw = 150;
+static double square_y_scale = 0.05, square_size_raw = 300;
 static double square_size = square_y_scale * square_size_raw;
 
 static int w = 0, h = 0;
@@ -24,9 +24,12 @@ static double car_rotate = 0;
 static double forward_speed = 0.2, side_speed = 0.4, car_forward_speed = 0, car_side_speed = 0;
 unsigned char yellow[]{ 255,255,0 }, white[]{ 255,255,255 };
 
-double tail_center[]{ -(head_size + tail_size) /2, (tail_size - head_size)/2, 0 };
+double tail_center[]{ -(head_size + tail_size) / 2, (tail_size - head_size) / 2, 0 };
 
 bool buffer[256];
+
+static int lanternsCount = 3;
+static bool lanternsOn = true;
 
 AUX_RGBImageRec* square_img;
 unsigned int square_tex;
@@ -37,7 +40,7 @@ unsigned int metal_tex;
 AUX_RGBImageRec* lantern_img;
 unsigned int lantern_tex;
 
-void LoadAUXTextures(){
+void LoadAUXTextures() {
 	square_img = auxDIBImageLoad("sources\\paving_stone_texture.bmp");
 	glGenTextures(1, &square_tex);
 	glBindTexture(GL_TEXTURE_2D, square_tex);
@@ -105,9 +108,14 @@ void drawCubeSimplified(GLdouble size) {
 	glEnd();
 }
 
-void drawLantern() {
+void drawLantern(GLfloat x, GLfloat y, GLfloat z, GLenum light) {
 	glPushMatrix();
+
+	//переносим фонарь
+	glTranslatef(x, y, z);
+
 	glRotatef(-90.0f, 1.0f, 0.0f, 0.0f);
+	//рисуем столб
 	GLUquadricObj* quadricObj;
 	quadricObj = gluNewQuadric();
 	glBindTexture(GL_TEXTURE_2D, metal_tex);
@@ -116,39 +124,54 @@ void drawLantern() {
 
 	gluCylinder(quadricObj, 2.0f, 2.0f, 45.0f, 30, 30);
 
-	//float emission[] = { 0.5, 0.5, 0.5, 1.0 };
-	//glMaterialfv(GL_FRONT, GL_EMISSION, emission);
-
-	GLfloat pos[] = { 1.0f,1.0f,1.0f,1.0f };
-	glLightfv(GL_DIFFUSE, GL_POSITION, pos);
-
-	glBindTexture(GL_TEXTURE_2D, lantern_tex);
-	gluQuadricOrientation(quadricObj, GLU_OUTSIDE);
-	gluQuadricTexture(quadricObj, GL_TRUE);
-
-	glTranslatef(0.0f, 0.0f, 45.0f);
-
-	gluCylinder(quadricObj, 3.0f, 3.0f, 5.0f, 30, 30);
-
 	gluDeleteQuadric(quadricObj);
 
+	//задаем свечение лампы
+	if (lanternsOn) {
+		float emission[] = { 0.5, 0.5, 0.5, 1.0 };
+		glMaterialfv(GL_FRONT, GL_EMISSION, emission);
+	}
+	
+	glBindTexture(GL_TEXTURE_2D, lantern_tex);
+
+	glTranslatef(0.0f, 0.0f, 45.0f);
+	glScalef(1.0f, 1.0f, 1.3f);
+
+	glColor3f(1.0f, 0.7f, 0.1f);
+
+	//задаем источник света для лампы
+	GLfloat pos[] = { 0.0f, 0.0f, 10.0f, 1.0f };
+	glLightfv(light, GL_POSITION, pos);
+	GLfloat diffuse[] = { 1.0f, 0.8f, 0.3f };
+	glLightfv(light, GL_DIFFUSE, diffuse);
+
+	drawCubeSimplified(2.5f);
+
+	//зчищаем свечение текстуры
+	if (lanternsOn) {
+		float clear_emission[] = { 0.0, 0.0, 0.0, 1.0 };
+		glMaterialfv(GL_FRONT, GL_EMISSION, clear_emission);
+	}
+
+	glColor3f(1.0f, 1.0f, 1.0f);
 	glPopMatrix();
 }
 
 void drawSquare() {
 	glPushMatrix();
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_BLEND);
+
 	//drawing a square with paving stone texture
-	
 	glScalef(1.0f, square_y_scale, 1.0f);
 	glBindTexture(GL_TEXTURE_2D, square_tex);
 	drawCubeSimplified(square_size_raw / 2);
 	glPopMatrix();
+
 	//drawing lanterns
-	glPushMatrix();
-	drawLantern();
-	glPopMatrix();
+	drawLantern(-50.f, 0.f, 43.f, GL_LIGHT1);
+	drawLantern(-40.f, 0.f, -65.f, GL_LIGHT2);
+	drawLantern(70.f, 0.f, 65.f, GL_LIGHT3);
 }
 
 double degToRad(double deg)
@@ -166,7 +189,7 @@ void drawCar()
 	car_center[0] += float(cos(yRad) * car_forward_speed);
 	glTranslatef(car_center[0], car_center[1], car_center[2]);
 	glRotatef(car_rotate, 0, 1, 0);
-	
+
 	glColor3ubv(yellow);
 	glutSolidCube(head_size);
 	glPushMatrix();
@@ -178,9 +201,11 @@ void drawCar()
 }
 
 void Init(void) {
-	glEnable(GL_TEXTURE_2D);
-	//glEnable(GL_LIGHTING);
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glEnable(GL_TEXTURE_2D);
+
+	glEnable(GL_LIGHTING);
+
 	glEnable(GL_DEPTH_TEST);
 	glDepthMask(GL_TRUE);
 	glDepthFunc(GL_LEQUAL);
@@ -218,13 +243,24 @@ void Update(void) {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	KeyHandler();
 
-	glLoadIdentity();	
+	glLoadIdentity();
 
 	//Задаем положение и вектор обзора
 	gluLookAt(100.0f, 100.0f, 100.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 
-	drawSquare();
+	//Работаем с освещением
+	if (lanternsOn) {
+		glEnable(GL_LIGHT1);
+		glEnable(GL_LIGHT2);
+		glEnable(GL_LIGHT3);
+	}
+	else {
+		glDisable(GL_LIGHT1);
+		glDisable(GL_LIGHT2);
+		glDisable(GL_LIGHT3);
+	}
 
+	drawSquare();
 	drawCar();
 
 	glFlush();
@@ -247,6 +283,14 @@ void Reshape(int width, int height) {
 void keyboardDown(unsigned char key, int x, int y)
 {
 	buffer[key] = true;
+	switch (key)
+	{
+	case 'l':
+		lanternsOn = !lanternsOn;
+		break;
+	default:
+		break;
+	}
 }
 
 void keyboardUp(unsigned char key, int x, int y)
