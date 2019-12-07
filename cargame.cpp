@@ -136,16 +136,15 @@ void drawLantern() {
 }
 
 void drawSquare() {
-	
+	glPushMatrix();
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 	//drawing a square with paving stone texture
-	glPushMatrix();
+	
 	glScalef(1.0f, square_y_scale, 1.0f);
 	glBindTexture(GL_TEXTURE_2D, square_tex);
 	drawCubeSimplified(square_size_raw / 2);
 	glPopMatrix();
-
 	//drawing lanterns
 	glPushMatrix();
 	drawLantern();
@@ -186,7 +185,6 @@ void Init(void) {
 	glDepthMask(GL_TRUE);
 	glDepthFunc(GL_LEQUAL);
 	glDepthRange(0.0f, 1.0f);
-
 	LoadAUXTextures();
 }
 
