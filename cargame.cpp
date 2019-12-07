@@ -71,12 +71,15 @@ void drawCubeSimplified(GLdouble size) {
 }
 
 
-void drawSquare() {
+void drawSquare() 
+{
+	glPushMatrix();
 	glScalef(1.0f, square_y_scale, 1.0f);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
 	glBindTexture(GL_TEXTURE_2D, square_tex);
 	drawCubeSimplified(square_size_raw / 2);
+	glPopMatrix();
 }
 
 double degToRad(double deg)
@@ -112,6 +115,14 @@ void Init(void) {
 	glDepthMask(GL_TRUE);
 	glDepthFunc(GL_LEQUAL);
 	glDepthRange(0.0f, 1.0f);
+	square_img = auxDIBImageLoad("sources\\paving_stone_texture.bmp");
+	glGenTextures(1, &square_tex);
+	glBindTexture(GL_TEXTURE_2D, square_tex);
+	gluBuild2DMipmaps(GL_TEXTURE_2D, 3,
+		square_img->sizeX,
+		square_img->sizeY,
+		GL_RGB, GL_UNSIGNED_BYTE,
+		square_img->data);
 }
 
 void KeyHandler()
@@ -137,15 +148,6 @@ void KeyHandler()
 	}
 	else
 		car_side_speed = 0;
-
-	square_img = auxDIBImageLoad("sources\\paving_stone_texture.bmp");
-	glGenTextures(1, &square_tex);
-	glBindTexture(GL_TEXTURE_2D, square_tex);
-	gluBuild2DMipmaps(GL_TEXTURE_2D, 3,
-		square_img->sizeX,
-		square_img->sizeY,
-		GL_RGB, GL_UNSIGNED_BYTE,
-		square_img->data);
 }
 
 void Update(void) {
@@ -177,27 +179,6 @@ void Reshape(int width, int height) {
 	//«адаем матрицу перспективного преобразовани€
 	gluPerspective(65.0f, w / h, 1.0f, 1000.0f);
 }
-
-//void keyboardSpecialKeys(int key, int x, int y) {
-//	switch (key)
-//	{
-//	case GLUT_KEY_LEFT:
-//		rotate_y[id] += 5;
-//		break;
-//	case GLUT_KEY_RIGHT:
-//		rotate_y[id] -= 5;
-//		break;
-//	case GLUT_KEY_UP:
-//		rotate_x[id] += 5;
-//		break;
-//	case GLUT_KEY_DOWN:
-//		rotate_x[id] -= 5;
-//		break;
-//	default:
-//		break;
-//	}
-//	glutPostRedisplay();
-//}
 
 
 void keyboardDown(unsigned char key, int x, int y)
