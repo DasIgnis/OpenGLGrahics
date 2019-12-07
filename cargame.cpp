@@ -21,7 +21,7 @@ static int w = 0, h = 0;
 static double head_size = 10, tail_size = 20, car_up = 3;
 static double car_center[]{ 0, (head_size + square_size) / 2 + car_up, 0 };
 static double car_rotate = 0;
-static double forward_speed = 2, side_speed = 4, car_forward_speed = 0, car_side_speed = 0;
+static double forward_speed = 0.2, side_speed = 0.4, car_forward_speed = 0, car_side_speed = 0;
 unsigned char yellow[]{ 255,255,0 }, white[]{ 255,255,255 };
 
 double tail_center[]{ -(head_size + tail_size) /2, (tail_size - head_size)/2, 0 };
