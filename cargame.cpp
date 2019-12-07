@@ -1,14 +1,32 @@
+#define _USE_MATH_DEFINES
 #define _CRT_SECURE_NO_WARNINGS
 
 #pragma comment(lib, "include/GLAUX.LIB")
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <iostream>
+#include <cstdlib>
+#include <cmath>
+#include <math.h>
+#include <iomanip>
+#include <string>
 #include "GL/freeglut.h"
 #include "include/glaux.h"
 
+static double square_y_scale = 0.1, square_size_raw = 150;
+static double square_size = square_y_scale * square_size_raw;
 
 static int w = 0, h = 0;
+static double head_size = 10, tail_size = 20, car_up = 3;
+static double car_center[]{ 0, (head_size + square_size) / 2 + car_up, 0 };
+static double car_rotate = 0;
+static double forward_speed = 2, side_speed = 4, car_forward_speed = 0, car_side_speed = 0;
+unsigned char yellow[]{ 255,255,0 }, white[]{ 255,255,255 };
+
+double tail_center[]{ -(head_size + tail_size) /2, (tail_size - head_size)/2, 0 };
+
+bool buffer[256];
 
 AUX_RGBImageRec* square_img;
 unsigned int square_tex;
@@ -20,7 +38,7 @@ AUX_RGBImageRec* lantern_img;
 unsigned int lantern_tex;
 
 void LoadAUXTextures(){
-	square_img = auxDIBImageLoad("D:\\Users\\acer\\source\\repos\\OpenGLLab\\Debug\\paving_stone_texture.bmp");
+	square_img = auxDIBImageLoad("sources\\paving_stone_texture.bmp");
 	glGenTextures(1, &square_tex);
 	glBindTexture(GL_TEXTURE_2D, square_tex);
 	gluBuild2DMipmaps(GL_TEXTURE_2D, 3,
@@ -29,7 +47,7 @@ void LoadAUXTextures(){
 		GL_RGB, GL_UNSIGNED_BYTE,
 		square_img->data);
 
-	metal_img = auxDIBImageLoad("D:\\Users\\acer\\source\\repos\\OpenGLLab\\Debug\\metal.bmp");
+	metal_img = auxDIBImageLoad("sources\\metal.bmp");
 	glGenTextures(1, &metal_tex);
 	glBindTexture(GL_TEXTURE_2D, metal_tex);
 	gluBuild2DMipmaps(GL_TEXTURE_2D, 3,
@@ -38,7 +56,7 @@ void LoadAUXTextures(){
 		GL_RGB, GL_UNSIGNED_BYTE,
 		metal_img->data);
 
-	lantern_img = auxDIBImageLoad("D:\\Users\\acer\\source\\repos\\OpenGLLab\\Debug\\lantern.bmp");
+	lantern_img = auxDIBImageLoad("sources\\lantern.bmp");
 	glGenTextures(1, &lantern_tex);
 	glBindTexture(GL_TEXTURE_2D, lantern_tex);
 	gluBuild2DMipmaps(GL_TEXTURE_2D, 3,
@@ -118,13 +136,14 @@ void drawLantern() {
 }
 
 void drawSquare() {
+	
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 	//drawing a square with paving stone texture
 	glPushMatrix();
-	glScalef(1.0f, 0.1f, 1.0f);
+	glScalef(1.0f, square_y_scale, 1.0f);
 	glBindTexture(GL_TEXTURE_2D, square_tex);
-	drawCubeSimplified(75.0f);
+	drawCubeSimplified(square_size_raw / 2);
 	glPopMatrix();
 
 	//drawing lanterns
@@ -133,11 +152,36 @@ void drawSquare() {
 	glPopMatrix();
 }
 
-void Init(void) {
-	//glEnable(GL_TEXTURE_2D);
-	glEnable(GL_LIGHTING);
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+double degToRad(double deg)
+{
+	const double halfC = M_PI / 180;
+	return deg * halfC;
+}
 
+void drawCar()
+{
+	glPushMatrix();
+	car_rotate += car_side_speed;
+	float yRad = degToRad(car_rotate);
+	car_center[2] -= float(sin(yRad) * car_forward_speed);
+	car_center[0] += float(cos(yRad) * car_forward_speed);
+	glTranslatef(car_center[0], car_center[1], car_center[2]);
+	glRotatef(car_rotate, 0, 1, 0);
+	
+	glColor3ubv(yellow);
+	glutSolidCube(head_size);
+	glPushMatrix();
+	glTranslatef(tail_center[0], tail_center[1], tail_center[2]);
+	glColor3ubv(white);
+	glutSolidCube(tail_size);
+	glPopMatrix();
+	glPopMatrix();
+}
+
+void Init(void) {
+	glEnable(GL_TEXTURE_2D);
+	//glEnable(GL_LIGHTING);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glEnable(GL_DEPTH_TEST);
 	glDepthMask(GL_TRUE);
 	glDepthFunc(GL_LEQUAL);
@@ -146,9 +190,35 @@ void Init(void) {
 	LoadAUXTextures();
 }
 
+void KeyHandler()
+{
+	if (buffer['w'])
+	{
+		car_forward_speed = forward_speed;
+	}
+	else if (buffer['s'])
+	{
+		car_forward_speed = -forward_speed;
+	}
+	else
+		car_forward_speed = 0;
+
+	if (buffer['a'])
+	{
+		car_side_speed = side_speed;
+	}
+	else if (buffer['d'])
+	{
+		car_side_speed = -side_speed;
+	}
+	else
+		car_side_speed = 0;
+}
+
 void Update(void) {
 	glMatrixMode(GL_MODELVIEW);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	KeyHandler();
 
 	glLoadIdentity();	
 
@@ -156,6 +226,8 @@ void Update(void) {
 	gluLookAt(100.0f, 100.0f, 100.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 
 	drawSquare();
+
+	drawCar();
 
 	glFlush();
 	glutSwapBuffers();
@@ -173,6 +245,17 @@ void Reshape(int width, int height) {
 	gluPerspective(65.0f, w / h, 1.0f, 1000.0f);
 }
 
+
+void keyboardDown(unsigned char key, int x, int y)
+{
+	buffer[key] = true;
+}
+
+void keyboardUp(unsigned char key, int x, int y)
+{
+	buffer[key] = false;
+}
+
 int main(int argc, char* argv[]) {
 
 	glutInit(&argc, argv);
@@ -186,6 +269,9 @@ int main(int argc, char* argv[]) {
 	glutReshapeFunc(Reshape);
 
 	Init();
+	glutKeyboardFunc(keyboardDown);
+	glutKeyboardUpFunc(keyboardUp);
+	//glutSpecialFunc(keyboardSpecialKeys);
 	glutMainLoop();
 	return 0;
 }
