@@ -14,6 +14,10 @@
 #include "GL/freeglut.h"
 #include "include/glaux.h"
 
+template <typename T> int sgn(T val) {
+	return (T(0) < val) - (val < T(0));
+}
+
 static double square_y_scale = 0.1, square_size_raw = 150;
 static double square_size = square_y_scale * square_size_raw;
 
@@ -21,10 +25,17 @@ static int w = 0, h = 0;
 static double head_size = 10, tail_size = 20, car_up = 3;
 static double car_center[]{ 0, (head_size + square_size) / 2 + car_up, 0 };
 static double car_rotate = 0;
-static double forward_speed = 2, side_speed = 4, car_forward_speed = 0, car_side_speed = 0;
+static double forward_speed = 100, side_speed = 30, car_forward_speed = 0, 
+	car_side_speed = 0, 
+	forward_speedup = 3, 
+	side_speedup = 1.5,
+	current_forward_speedup = 0,
+	current_side_speedup = 0;
 unsigned char yellow[]{ 255,255,0 }, white[]{ 255,255,255 };
 
 double tail_center[]{ -(head_size + tail_size) /2, (tail_size - head_size)/2, 0 };
+
+double dt = 0, old_t = 0, t = 0;
 
 bool buffer[256];
 
@@ -160,10 +171,10 @@ double degToRad(double deg)
 void drawCar()
 {
 	glPushMatrix();
-	car_rotate += car_side_speed;
+	car_rotate += side_speed * dt * current_side_speedup * side_speedup;
 	float yRad = degToRad(car_rotate);
-	car_center[2] -= float(sin(yRad) * car_forward_speed);
-	car_center[0] += float(cos(yRad) * car_forward_speed);
+	car_center[2] -= float(sin(yRad) * forward_speed * dt * current_forward_speedup  / forward_speedup);
+	car_center[0] += float(cos(yRad) * forward_speed * dt * current_forward_speedup / forward_speedup);
 	glTranslatef(car_center[0], car_center[1], car_center[2]);
 	glRotatef(car_rotate, 0, 1, 0);
 	
@@ -186,39 +197,46 @@ void Init(void) {
 	glDepthFunc(GL_LEQUAL);
 	glDepthRange(0.0f, 1.0f);
 	LoadAUXTextures();
+
+	old_t = glutGet(GLUT_ELAPSED_TIME);
 }
 
 void KeyHandler()
 {
 	if (buffer['w'])
 	{
-		car_forward_speed = forward_speed;
+		current_forward_speedup = std::fmin(current_forward_speedup + dt, forward_speedup);
 	}
 	else if (buffer['s'])
 	{
-		car_forward_speed = -forward_speed;
+		current_forward_speedup = std::fmax(current_forward_speedup - dt, -forward_speedup);
 	}
 	else
-		car_forward_speed = 0;
+	{
+		current_forward_speedup = sgn(current_forward_speedup) * std::fmax(0, sgn(current_forward_speedup) * current_forward_speedup - dt);
+	}
 
 	if (buffer['a'])
 	{
-		car_side_speed = side_speed;
+		current_side_speedup = std::fmin(current_side_speedup + dt, side_speedup);
 	}
 	else if (buffer['d'])
 	{
-		car_side_speed = -side_speed;
+		current_side_speedup = std::fmax(current_side_speedup - dt, -side_speedup);
 	}
 	else
-		car_side_speed = 0;
+		current_side_speedup = sgn(current_side_speedup) * std::fmax(0, sgn(current_side_speedup) * current_side_speedup - dt);
+
 }
 
 void Update(void) {
+	t = glutGet(GLUT_ELAPSED_TIME);
+	dt = (t - old_t) / 1000.0;
+	old_t = t;
 	glMatrixMode(GL_MODELVIEW);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	KeyHandler();
-
-	glLoadIdentity();	
+	glLoadIdentity();
 
 	//Задаем положение и вектор обзора
 	gluLookAt(100.0f, 100.0f, 100.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
