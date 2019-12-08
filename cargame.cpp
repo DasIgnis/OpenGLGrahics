@@ -1,4 +1,4 @@
-#define _USE_MATH_DEFINES
+ï»¿#define _USE_MATH_DEFINES
 #define _CRT_SECURE_NO_WARNINGS
 
 #pragma comment(lib, "include/GLAUX.LIB")
@@ -22,19 +22,20 @@ static double square_y_scale = 0.05, square_size_raw = 300;
 static double square_size = square_y_scale * square_size_raw;
 
 static int w = 0, h = 0;
-static double head_size = 10, tail_size = 20, car_up = 3;
+static double head_size = 10, tail_size = 20, wheel_size = 6, tire_size = 1.5, wheel_slices = 10, wheel_loops = 10,
+	headlamp_size = 4, headlamp_stacks = 10, headlamp_slices = 10;
+static double car_up = wheel_size / 2 + tire_size;
 static double car_center[]{ 0, (head_size + square_size) / 2 + car_up, 0 };
 static double car_rotate = 0;
-static double forward_speed = 100, side_speed = 30, car_forward_speed = 0, 
-	car_side_speed = 0, 
+static double forward_speed = 100, side_speed = 60,
 	forward_speedup = 3, 
 	side_speedup = 1.5,
 	current_forward_speedup = 0,
 	current_side_speedup = 0;
 
-unsigned char yellow[]{ 255,255,0 }, white[]{ 255,255,255 };
-
 double tail_center[]{ -(head_size + tail_size) / 2, (tail_size - head_size) / 2, 0 };
+double wheel_center[]{ (tail_size) / 2, -tail_size / 2, (tail_size + 1) / 2};
+double headlamp_center[]{ head_size / 2, -(head_size - headlamp_size) / 2, (head_size - headlamp_size) / 2 };
 
 double dt = 0, old_t = 0, t = 0;
 
@@ -51,6 +52,9 @@ unsigned int metal_tex;
 
 AUX_RGBImageRec* lantern_img;
 unsigned int lantern_tex;
+
+AUX_RGBImageRec* cola_img;
+unsigned int cola_tex;
 
 void LoadAUXTextures() {
 	square_img = auxDIBImageLoad("sources\\paving_stone_texture.bmp");
@@ -79,6 +83,16 @@ void LoadAUXTextures() {
 		lantern_img->sizeY,
 		GL_RGB, GL_UNSIGNED_BYTE,
 		lantern_img->data);
+
+	cola_img = auxDIBImageLoad("sources\\cola.bmp");
+	glGenTextures(1, &cola_tex);
+	glBindTexture(GL_TEXTURE_2D, cola_tex);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 2);
+	gluBuild2DMipmaps(GL_TEXTURE_2D, 3,
+		cola_img->sizeX,
+		cola_img->sizeY,
+		GL_RGB, GL_BYTE,
+		cola_img->data);
 }
 
 void drawCubeSimplified(GLdouble size) {
@@ -120,14 +134,56 @@ void drawCubeSimplified(GLdouble size) {
 	glEnd();
 }
 
+/*
+r = torus ring radius
+c = torus tube radius
+rSeg, cSeg = number of segments/detail
+*/
+void drawTorus(double r = 0.07, double c = 0.15,
+	int rSeg = 16, int cSeg = 8,
+	int texture = 0)
+{
+	glFrontFace(GL_CW);
+
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
+	const double PI = M_PI;
+	const double TAU = 2 * PI;
+
+	for (int i = 0; i < rSeg; i++) {
+		glBegin(GL_QUAD_STRIP);
+		for (int j = 0; j <= cSeg; j++) {
+			for (int k = 0; k <= 1; k++) {
+				double s = (i + k) % rSeg + 0.5;
+				double t = j % (cSeg + 1);
+
+				double x = (c + r * cos(s * TAU / rSeg)) * cos(t * TAU / cSeg);
+				double y = (c + r * cos(s * TAU / rSeg)) * sin(t * TAU / cSeg);
+				double z = r * sin(s * TAU / rSeg);
+
+				double u = (i + k) / (float)rSeg;
+				double v = t / (float)cSeg;
+
+				glTexCoord2d(u, v);
+				glNormal3f(2 * x, 2 * y, 2 * z);
+				glVertex3d(2 * x, 2 * y, 2 * z);
+			}
+		}
+		glEnd();
+	}
+
+	glFrontFace(GL_CCW);
+}
+
 void drawLantern(GLfloat x, GLfloat y, GLfloat z, GLenum light) {
 	glPushMatrix();
 
-	//ïåðåíîñèì ôîíàðü
+	//Ð¿ÐµÑ€ÐµÐ½Ð¾ÑÐ¸Ð¼ Ñ„Ð¾Ð½Ð°Ñ€ÑŒ
 	glTranslatef(x, y, z);
 
 	glRotatef(-90.0f, 1.0f, 0.0f, 0.0f);
-	//ðèñóåì ñòîëá
+	//Ñ€Ð¸ÑÑƒÐµÐ¼ ÑÑ‚Ð¾Ð»Ð±
 	GLUquadricObj* quadricObj;
 	quadricObj = gluNewQuadric();
 	glBindTexture(GL_TEXTURE_2D, metal_tex);
@@ -138,7 +194,7 @@ void drawLantern(GLfloat x, GLfloat y, GLfloat z, GLenum light) {
 
 	gluDeleteQuadric(quadricObj);
 
-	//çàäàåì ñâå÷åíèå ëàìïû
+	//Ð·Ð°Ð´Ð°ÐµÐ¼ ÑÐ²ÐµÑ‡ÐµÐ½Ð¸Ðµ Ð»Ð°Ð¼Ð¿Ñ‹
 	if (lanternsOn) {
 		float emission[] = { 0.5, 0.5, 0.5, 1.0 };
 		glMaterialfv(GL_FRONT, GL_EMISSION, emission);
@@ -149,9 +205,9 @@ void drawLantern(GLfloat x, GLfloat y, GLfloat z, GLenum light) {
 	glTranslatef(0.0f, 0.0f, 45.0f);
 	glScalef(1.0f, 1.0f, 1.3f);
 
-	glColor3f(1.0f, 0.7f, 0.1f);
+	//glColor3f(1.0f, 0.7f, 0.1f);
 
-	//çàäàåì èñòî÷íèê ñâåòà äëÿ ëàìïû
+	//Ð·Ð°Ð´Ð°ÐµÐ¼ Ð¸ÑÑ‚Ð¾Ñ‡Ð½Ð¸Ðº ÑÐ²ÐµÑ‚Ð° Ð´Ð»Ñ Ð»Ð°Ð¼Ð¿Ñ‹
 	GLfloat pos[] = { 0.0f, 0.0f, 10.0f, 1.0f };
 	glLightfv(light, GL_POSITION, pos);
 	GLfloat diffuse[] = { 1.0f, 0.8f, 0.3f };
@@ -159,20 +215,18 @@ void drawLantern(GLfloat x, GLfloat y, GLfloat z, GLenum light) {
 
 	drawCubeSimplified(2.5f);
 
-	//ç÷èùàåì ñâå÷åíèå òåêñòóðû
+	//Ð·Ñ‡Ð¸Ñ‰Ð°ÐµÐ¼ ÑÐ²ÐµÑ‡ÐµÐ½Ð¸Ðµ Ñ‚ÐµÐºÑÑ‚ÑƒÑ€Ñ‹
 	if (lanternsOn) {
 		float clear_emission[] = { 0.0, 0.0, 0.0, 1.0 };
 		glMaterialfv(GL_FRONT, GL_EMISSION, clear_emission);
 	}
 
-	glColor3f(1.0f, 1.0f, 1.0f);
+	//glColor3f(1.0f, 1.0f, 1.0f);
 	glPopMatrix();
 }
 
 void drawSquare() {
 	glPushMatrix();
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_BLEND);
 
 	//drawing a square with paving stone texture
 	glScalef(1.0f, square_y_scale, 1.0f);
@@ -195,25 +249,70 @@ double degToRad(double deg)
 void drawCar()
 {
 	glPushMatrix();
-	car_rotate += side_speed * dt * current_side_speedup * side_speedup;
+	car_rotate += side_speed * dt * current_side_speedup / side_speedup;
 	float yRad = degToRad(car_rotate);
 	car_center[2] -= float(sin(yRad) * forward_speed * dt * current_forward_speedup  / forward_speedup);
 	car_center[0] += float(cos(yRad) * forward_speed * dt * current_forward_speedup / forward_speedup);
 	glTranslatef(car_center[0], car_center[1], car_center[2]);
 	glRotatef(car_rotate, 0, 1, 0);
+	// texture for head of car
+	glBindTexture(GL_TEXTURE_2D, cola_tex);
+	drawCubeSimplified(head_size / 2);
 
-	glColor3ubv(yellow);
-	glutSolidCube(head_size);
 	glPushMatrix();
 	glTranslatef(tail_center[0], tail_center[1], tail_center[2]);
-	glColor3ubv(white);
-	glutSolidCube(tail_size);
+	// texture for tail of car
+	glBindTexture(GL_TEXTURE_2D, cola_tex);
+	drawCubeSimplified(tail_size / 2);
+
+	// texture for wheels
+	int wheel_texture = metal_tex;
+
+	glPushMatrix();
+	glTranslatef(wheel_center[0], wheel_center[1], wheel_center[2]);
+	glRotatef(side_speed * current_side_speedup / side_speedup, 0, 1, 0);
+	drawTorus(tire_size / 2, wheel_size / 2 - tire_size, wheel_slices, wheel_loops, wheel_texture);
 	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(wheel_center[0], wheel_center[1], -wheel_center[2]);
+	glRotatef(side_speed * current_side_speedup / side_speedup, 0, 1, 0);
+	drawTorus(tire_size / 2, wheel_size / 2 - tire_size, wheel_slices, wheel_loops, wheel_texture);
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(-wheel_center[0], wheel_center[1], wheel_center[2]);
+	drawTorus(tire_size / 2, wheel_size / 2 - tire_size, wheel_slices, wheel_loops, wheel_texture);
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(-wheel_center[0], wheel_center[1], -wheel_center[2]);
+	drawTorus(tire_size / 2, wheel_size / 2 - tire_size, wheel_slices, wheel_loops, wheel_texture);
+	glPopMatrix();
+
+	glPopMatrix();
+
+	GLUquadricObj* quadricObj;
+	quadricObj = gluNewQuadric();
+	glBindTexture(GL_TEXTURE_2D, cola_tex);
+	gluQuadricOrientation(quadricObj, GLU_OUTSIDE);
+	gluQuadricTexture(quadricObj, GL_TRUE);
+
+	glPushMatrix();
+	glTranslatef(headlamp_center[0], headlamp_center[1], -headlamp_center[2]);
+	gluSphere(quadricObj, headlamp_size / 2, headlamp_slices, headlamp_stacks);
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(headlamp_center[0], headlamp_center[1], headlamp_center[2]);
+	gluSphere(quadricObj, headlamp_size / 2, headlamp_slices, headlamp_stacks);
+	glPopMatrix();
+
 	glPopMatrix();
 }
 
 void Init(void) {
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClearColor(0.0f, 0.0f, .0f, .0f);
 	glEnable(GL_TEXTURE_2D);
 
 	glEnable(GL_LIGHTING);
@@ -264,10 +363,10 @@ void Update(void) {
 	KeyHandler();
 	glLoadIdentity();
 
-	//Çàäàåì ïîëîæåíèå è âåêòîð îáçîðà
+	//Ð—Ð°Ð´Ð°ÐµÐ¼ Ð¿Ð¾Ð»Ð¾Ð¶ÐµÐ½Ð¸Ðµ Ð¸ Ð²ÐµÐºÑ‚Ð¾Ñ€ Ð¾Ð±Ð·Ð¾Ñ€Ð°
 	gluLookAt(100.0f, 100.0f, 100.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 
-	//Ðàáîòàåì ñ îñâåùåíèåì
+	//Ð Ð°Ð±Ð¾Ñ‚Ð°ÐµÐ¼ Ñ Ð¾ÑÐ²ÐµÑ‰ÐµÐ½Ð¸ÐµÐ¼
 	if (lanternsOn) {
 		glEnable(GL_LIGHT1);
 		glEnable(GL_LIGHT2);
@@ -291,10 +390,10 @@ void Reshape(int width, int height) {
 	h = height;
 
 	glViewport(0, 0, w, h);
-	//Ïåðñïåêòèâíîå ïðåîáðàçîâàíèå
+	//ÐŸÐµÑ€ÑÐ¿ÐµÐºÑ‚Ð¸Ð²Ð½Ð¾Ðµ Ð¿Ñ€ÐµÐ¾Ð±Ñ€Ð°Ð·Ð¾Ð²Ð°Ð½Ð¸Ðµ
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
-	//Çàäàåì ìàòðèöó ïåðñïåêòèâíîãî ïðåîáðàçîâàíèÿ
+	//Ð—Ð°Ð´Ð°ÐµÐ¼ Ð¼Ð°Ñ‚Ñ€Ð¸Ñ†Ñƒ Ð¿ÐµÑ€ÑÐ¿ÐµÐºÑ‚Ð¸Ð²Ð½Ð¾Ð³Ð¾ Ð¿Ñ€ÐµÐ¾Ð±Ñ€Ð°Ð·Ð¾Ð²Ð°Ð½Ð¸Ñ
 	gluPerspective(65.0f, w / h, 1.0f, 1000.0f);
 }
 
