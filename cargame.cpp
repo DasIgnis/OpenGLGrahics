@@ -43,6 +43,7 @@ bool buffer[256];
 
 static int lanternsCount = 3;
 static bool lanternsOn = true;
+static bool carLightingOn = true;
 
 AUX_RGBImageRec* square_img;
 unsigned int square_tex;
@@ -55,6 +56,15 @@ unsigned int lantern_tex;
 
 AUX_RGBImageRec* cola_img;
 unsigned int cola_tex;
+
+AUX_RGBImageRec* wheels_img;
+unsigned int wheels_tex;
+
+AUX_RGBImageRec* gift_img;
+unsigned int gift_tex;
+
+AUX_RGBImageRec* truck_img;
+unsigned int truck_tex;
 
 void LoadAUXTextures() {
 	square_img = auxDIBImageLoad("sources\\paving_stone_texture.bmp");
@@ -93,6 +103,36 @@ void LoadAUXTextures() {
 		cola_img->sizeY,
 		GL_RGB, GL_BYTE,
 		cola_img->data);
+
+	wheels_img = auxDIBImageLoad("sources\\wheels.bmp");
+	glGenTextures(1, &wheels_tex);
+	glBindTexture(GL_TEXTURE_2D, wheels_tex);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 2);
+	gluBuild2DMipmaps(GL_TEXTURE_2D, 3,
+		wheels_img->sizeX,
+		wheels_img->sizeY,
+		GL_RGB, GL_BYTE,
+		wheels_img->data);
+
+	gift_img = auxDIBImageLoad("sources\\gift.bmp");
+	glGenTextures(1, &gift_tex);
+	glBindTexture(GL_TEXTURE_2D, gift_tex);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 2);
+	gluBuild2DMipmaps(GL_TEXTURE_2D, 3,
+		gift_img->sizeX,
+		gift_img->sizeY,
+		GL_RGB, GL_BYTE,
+		gift_img->data);
+
+	truck_img = auxDIBImageLoad("sources\\truck.bmp");
+	glGenTextures(1, &truck_tex);
+	glBindTexture(GL_TEXTURE_2D, truck_tex);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 2);
+	gluBuild2DMipmaps(GL_TEXTURE_2D, 3,
+		truck_img->sizeX,
+		truck_img->sizeY,
+		GL_RGB, GL_BYTE,
+		truck_img->data);
 }
 
 void drawCubeSimplified(GLdouble size) {
@@ -196,7 +236,7 @@ void drawLantern(GLfloat x, GLfloat y, GLfloat z, GLenum light) {
 
 	//задаем свечение лампы
 	if (lanternsOn) {
-		float emission[] = { 0.5, 0.5, 0.5, 1.0 };
+		float emission[] = { 0.3, 0.3, 0.3, 1.0 };
 		glMaterialfv(GL_FRONT, GL_EMISSION, emission);
 	}
 	
@@ -208,10 +248,11 @@ void drawLantern(GLfloat x, GLfloat y, GLfloat z, GLenum light) {
 	//glColor3f(1.0f, 0.7f, 0.1f);
 
 	//задаем источник света для лампы
-	GLfloat pos[] = { 0.0f, 0.0f, 10.0f, 1.0f };
+	GLfloat pos[] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	glLightfv(light, GL_POSITION, pos);
 	GLfloat diffuse[] = { 1.0f, 0.8f, 0.3f };
 	glLightfv(light, GL_DIFFUSE, diffuse);
+	glLightf(light, GL_LINEAR_ATTENUATION, 0.005);
 
 	drawCubeSimplified(2.5f);
 
@@ -235,15 +276,51 @@ void drawSquare() {
 	glPopMatrix();
 
 	//drawing lanterns
-	drawLantern(-50.f, 0.f, 43.f, GL_LIGHT1);
-	drawLantern(-40.f, 0.f, -65.f, GL_LIGHT2);
-	drawLantern(70.f, 0.f, 65.f, GL_LIGHT3);
+	drawLantern(-80.f, 0.f, 73.f, GL_LIGHT1);
+	drawLantern(-70.f, 0.f, -95.f, GL_LIGHT2);
+	drawLantern(100.f, 0.f, 65.f, GL_LIGHT3);
+	drawLantern(90.f, 0.f, -100.f, GL_LIGHT4);
+
+	glPushMatrix();
+	glBindTexture(GL_TEXTURE_2D, gift_tex);
+
+	glPushMatrix();
+	glTranslatef(-50.f, 18.f, 60.f);
+	glRotatef(45.f, 0.f, 1.f, 0.f);
+	drawCubeSimplified(8.f);
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(80.f, 15.f, 40.f);
+	glRotatef(15.f, 0.f, 1.f, 0.f);
+	glRotatef(90.f, 1.f, 0.f, 0.f);
+	drawCubeSimplified(5.f);
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(105.f, 17.5f, -90.f);
+	drawCubeSimplified(7.f);
+	glPopMatrix();
+
+	glPopMatrix();
 }
 
 double degToRad(double deg)
 {
 	const double halfC = M_PI / 180;
 	return deg * halfC;
+}
+
+void setupCarLight(GLenum light) {
+	GLfloat pos[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	glLightfv(light, GL_POSITION, pos);
+	GLfloat diffuse[] = { 1.0f, 0.8f, 0.8f };
+	glLightfv(light, GL_DIFFUSE, diffuse);
+	GLfloat spot_dir[] = {1.f, -0.3f, 0.f };
+	glLightfv(light, GL_SPOT_DIRECTION, spot_dir);
+	glLightf(light, GL_SPOT_CUTOFF, 30.0);
+	glLightf(light, GL_SPOT_EXPONENT, 10.0);
+	glLightf(light, GL_LINEAR_ATTENUATION, 0.01);
 }
 
 void drawCar()
@@ -256,7 +333,7 @@ void drawCar()
 	glTranslatef(car_center[0], car_center[1], car_center[2]);
 	glRotatef(car_rotate, 0, 1, 0);
 	// texture for head of car
-	glBindTexture(GL_TEXTURE_2D, cola_tex);
+	glBindTexture(GL_TEXTURE_2D, truck_tex);
 	drawCubeSimplified(head_size / 2);
 
 	glPushMatrix();
@@ -266,7 +343,7 @@ void drawCar()
 	drawCubeSimplified(tail_size / 2);
 
 	// texture for wheels
-	int wheel_texture = metal_tex;
+	int wheel_texture = wheels_tex;
 
 	glPushMatrix();
 	glTranslatef(wheel_center[0], wheel_center[1], wheel_center[2]);
@@ -277,6 +354,7 @@ void drawCar()
 	glPushMatrix();
 	glTranslatef(wheel_center[0], wheel_center[1], -wheel_center[2]);
 	glRotatef(side_speed * current_side_speedup / side_speedup, 0, 1, 0);
+
 	drawTorus(tire_size / 2, wheel_size / 2 - tire_size, wheel_slices, wheel_loops, wheel_texture);
 	glPopMatrix();
 
@@ -294,18 +372,44 @@ void drawCar()
 
 	GLUquadricObj* quadricObj;
 	quadricObj = gluNewQuadric();
-	glBindTexture(GL_TEXTURE_2D, cola_tex);
+	glBindTexture(GL_TEXTURE_2D, lantern_tex);
 	gluQuadricOrientation(quadricObj, GLU_OUTSIDE);
 	gluQuadricTexture(quadricObj, GL_TRUE);
 
+	//Одна фара
 	glPushMatrix();
+
+	float emission[] = { 0.5, 0.5, 0.5, 1.0 };
+	float clear_emission[] = { 0.0, 0.0, 0.0, 1.0 };
 	glTranslatef(headlamp_center[0], headlamp_center[1], -headlamp_center[2]);
+
+	if (carLightingOn) {
+		glMaterialfv(GL_FRONT, GL_EMISSION, emission);
+	}
+	
+	setupCarLight(GL_LIGHT5);
 	gluSphere(quadricObj, headlamp_size / 2, headlamp_slices, headlamp_stacks);
+
+	if (carLightingOn) {
+		glMaterialfv(GL_FRONT, GL_EMISSION, clear_emission);
+	}
+
 	glPopMatrix();
 
+	//Вторая фара
 	glPushMatrix();
 	glTranslatef(headlamp_center[0], headlamp_center[1], headlamp_center[2]);
+
+	if (carLightingOn) {
+		glMaterialfv(GL_FRONT, GL_EMISSION, emission);
+	}
+
+	setupCarLight(GL_LIGHT6);
 	gluSphere(quadricObj, headlamp_size / 2, headlamp_slices, headlamp_stacks);
+	if (carLightingOn) {
+		glMaterialfv(GL_FRONT, GL_EMISSION, clear_emission);
+	}
+
 	glPopMatrix();
 
 	glPopMatrix();
@@ -364,18 +468,28 @@ void Update(void) {
 	glLoadIdentity();
 
 	//Задаем положение и вектор обзора
-	gluLookAt(100.0f, 100.0f, 100.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+	gluLookAt(150.0f, 150.0f, 150.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 
 	//Работаем с освещением
 	if (lanternsOn) {
 		glEnable(GL_LIGHT1);
 		glEnable(GL_LIGHT2);
 		glEnable(GL_LIGHT3);
+		glEnable(GL_LIGHT4);
 	}
 	else {
 		glDisable(GL_LIGHT1);
 		glDisable(GL_LIGHT2);
 		glDisable(GL_LIGHT3);
+		glDisable(GL_LIGHT4);
+	}
+	if (carLightingOn) {
+		glEnable(GL_LIGHT5);
+		glEnable(GL_LIGHT6);
+	}
+	else {
+		glDisable(GL_LIGHT5);
+		glDisable(GL_LIGHT6);
 	}
 
 	drawSquare();
@@ -405,6 +519,9 @@ void keyboardDown(unsigned char key, int x, int y)
 	{
 	case 'l':
 		lanternsOn = !lanternsOn;
+		break;
+	case 'k':
+		carLightingOn = !carLightingOn;
 		break;
 	default:
 		break;
