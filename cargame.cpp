@@ -1,6 +1,6 @@
 ﻿#define _USE_MATH_DEFINES
 #define _CRT_SECURE_NO_WARNINGS
-
+#include <GL/glew.h>
 #pragma comment(lib, "include/GLAUX.LIB")
 
 #include <stdio.h>
@@ -11,544 +11,277 @@
 #include <math.h>
 #include <iomanip>
 #include <string>
+#include <fstream>
+#include <streambuf>
+#include <map>
+#include <vector>
 #include "GL/freeglut.h"
 #include "include/glaux.h"
 
-template <typename T> int sgn(T val) {
-	return (T(0) < val) - (val < T(0));
-}
 
-static double square_y_scale = 0.05, square_size_raw = 300;
-static double square_size = square_y_scale * square_size_raw;
+//! Переменные с индентификаторами ID 
+//! ID шейдерной программы 
+GLuint Program, program2;
+//! ID юниформ переменной цвета 
+GLint  ucolor, ucolor1, ucolor2, udir, uwidth;
+double rotate_z = 0;
 
-static int w = 0, h = 0;
-static double head_size = 10, tail_size = 20, wheel_size = 6, tire_size = 1.5, wheel_slices = 10, wheel_loops = 10,
-	headlamp_size = 4, headlamp_stacks = 10, headlamp_slices = 10;
-static double car_up = wheel_size / 2 + tire_size;
-static double car_center[]{ 0, (head_size + square_size) / 2 + car_up, 0 };
-static double car_rotate = 0;
-static double forward_speed = 100, side_speed = 60,
-	forward_speedup = 3, 
-	side_speedup = 1.5,
-	current_forward_speedup = 0,
-	current_side_speedup = 0;
+int option_list = 0;
+char option_char = 'z';
+std::vector<std::map<char, int>> options, speeds;
 
-double tail_center[]{ -(head_size + tail_size) / 2, (tail_size - head_size) / 2, 0 };
-double wheel_center[]{ (tail_size) / 2, -tail_size / 2, (tail_size + 1) / 2};
-double headlamp_center[]{ head_size / 2, -(head_size - headlamp_size) / 2, (head_size - headlamp_size) / 2 };
 
-double dt = 0, old_t = 0, t = 0;
-
-bool buffer[256];
-
-static int lanternsCount = 3;
-static bool lanternsOn = true;
-static bool carLightingOn = true;
-
-AUX_RGBImageRec* square_img;
-unsigned int square_tex;
-
-AUX_RGBImageRec* metal_img;
-unsigned int metal_tex;
-
-AUX_RGBImageRec* lantern_img;
-unsigned int lantern_tex;
-
-AUX_RGBImageRec* cola_img;
-unsigned int cola_tex;
-
-AUX_RGBImageRec* wheels_img;
-unsigned int wheels_tex;
-
-AUX_RGBImageRec* gift_img;
-unsigned int gift_tex;
-
-AUX_RGBImageRec* truck_img;
-unsigned int truck_tex;
-
-void LoadAUXTextures() {
-	square_img = auxDIBImageLoad("sources\\paving_stone_texture.bmp");
-	glGenTextures(1, &square_tex);
-	glBindTexture(GL_TEXTURE_2D, square_tex);
-	gluBuild2DMipmaps(GL_TEXTURE_2D, 3,
-		square_img->sizeX,
-		square_img->sizeY,
-		GL_RGB, GL_UNSIGNED_BYTE,
-		square_img->data);
-
-	metal_img = auxDIBImageLoad("sources\\metal.bmp");
-	glGenTextures(1, &metal_tex);
-	glBindTexture(GL_TEXTURE_2D, metal_tex);
-	gluBuild2DMipmaps(GL_TEXTURE_2D, 3,
-		metal_img->sizeX,
-		metal_img->sizeY,
-		GL_RGB, GL_UNSIGNED_BYTE,
-		metal_img->data);
-
-	lantern_img = auxDIBImageLoad("sources\\lantern.bmp");
-	glGenTextures(1, &lantern_tex);
-	glBindTexture(GL_TEXTURE_2D, lantern_tex);
-	gluBuild2DMipmaps(GL_TEXTURE_2D, 3,
-		lantern_img->sizeX,
-		lantern_img->sizeY,
-		GL_RGB, GL_UNSIGNED_BYTE,
-		lantern_img->data);
-
-	cola_img = auxDIBImageLoad("sources\\cola.bmp");
-	glGenTextures(1, &cola_tex);
-	glBindTexture(GL_TEXTURE_2D, cola_tex);
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 2);
-	gluBuild2DMipmaps(GL_TEXTURE_2D, 3,
-		cola_img->sizeX,
-		cola_img->sizeY,
-		GL_RGB, GL_BYTE,
-		cola_img->data);
-
-	wheels_img = auxDIBImageLoad("sources\\wheels.bmp");
-	glGenTextures(1, &wheels_tex);
-	glBindTexture(GL_TEXTURE_2D, wheels_tex);
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 2);
-	gluBuild2DMipmaps(GL_TEXTURE_2D, 3,
-		wheels_img->sizeX,
-		wheels_img->sizeY,
-		GL_RGB, GL_BYTE,
-		wheels_img->data);
-
-	gift_img = auxDIBImageLoad("sources\\gift.bmp");
-	glGenTextures(1, &gift_tex);
-	glBindTexture(GL_TEXTURE_2D, gift_tex);
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 2);
-	gluBuild2DMipmaps(GL_TEXTURE_2D, 3,
-		gift_img->sizeX,
-		gift_img->sizeY,
-		GL_RGB, GL_BYTE,
-		gift_img->data);
-
-	truck_img = auxDIBImageLoad("sources\\truck.bmp");
-	glGenTextures(1, &truck_tex);
-	glBindTexture(GL_TEXTURE_2D, truck_tex);
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 2);
-	gluBuild2DMipmaps(GL_TEXTURE_2D, 3,
-		truck_img->sizeX,
-		truck_img->sizeY,
-		GL_RGB, GL_BYTE,
-		truck_img->data);
-}
-
-void drawCubeSimplified(GLdouble size) {
-	glBegin(GL_QUADS);
-	glTexCoord2d(0, 0); glVertex3d(-size, size, -size);
-	glTexCoord2d(1, 0); glVertex3d(size, size, -size);
-	glTexCoord2d(1, 1); glVertex3d(size, size, size);
-	glTexCoord2d(0, 1); glVertex3d(-size, size, size);
-	glEnd();
-	glBegin(GL_QUADS);
-	glTexCoord2d(0, 0); glVertex3d(-size, -size, -size);
-	glTexCoord2d(1, 0); glVertex3d(size, -size, -size);
-	glTexCoord2d(1, 1); glVertex3d(size, -size, size);
-	glTexCoord2d(0, 1); glVertex3d(-size, -size, size);
-	glEnd();
-	glBegin(GL_QUADS);
-	glTexCoord2d(0, 0); glVertex3d(size, size, -size);
-	glTexCoord2d(1, 0); glVertex3d(size, -size, -size);
-	glTexCoord2d(1, 1); glVertex3d(size, -size, size);
-	glTexCoord2d(0, 1); glVertex3d(size, size, size);
-	glEnd();
-	glBegin(GL_QUADS);
-	glTexCoord2d(0, 0); glVertex3d(-size, size, -size);
-	glTexCoord2d(1, 0); glVertex3d(-size, -size, -size);
-	glTexCoord2d(1, 1); glVertex3d(-size, -size, size);
-	glTexCoord2d(0, 1); glVertex3d(-size, size, size);
-	glEnd();
-	glBegin(GL_QUADS);
-	glTexCoord2d(0, 0); glVertex3d(-size, size, size);
-	glTexCoord2d(1, 0); glVertex3d(size, size, size);
-	glTexCoord2d(1, 1); glVertex3d(size, -size, size);
-	glTexCoord2d(0, 1); glVertex3d(-size, -size, size);
-	glEnd();
-	glBegin(GL_QUADS);
-	glTexCoord2d(0, 0); glVertex3d(-size, size, -size);
-	glTexCoord2d(1, 0); glVertex3d(size, size, -size);
-	glTexCoord2d(1, 1); glVertex3d(size, -size, -size);
-	glTexCoord2d(0, 1); glVertex3d(-size, -size, -size);
-	glEnd();
-}
-
-/*
-r = torus ring radius
-c = torus tube radius
-rSeg, cSeg = number of segments/detail
-*/
-void drawTorus(double r = 0.07, double c = 0.15,
-	int rSeg = 16, int cSeg = 8,
-	int texture = 0)
+void setup_options()
 {
-	glFrontFace(GL_CW);
-
-	glBindTexture(GL_TEXTURE_2D, texture);
-	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-
-	const double PI = M_PI;
-	const double TAU = 2 * PI;
-
-	for (int i = 0; i < rSeg; i++) {
-		glBegin(GL_QUAD_STRIP);
-		for (int j = 0; j <= cSeg; j++) {
-			for (int k = 0; k <= 1; k++) {
-				double s = (i + k) % rSeg + 0.5;
-				double t = j % (cSeg + 1);
-
-				double x = (c + r * cos(s * TAU / rSeg)) * cos(t * TAU / cSeg);
-				double y = (c + r * cos(s * TAU / rSeg)) * sin(t * TAU / cSeg);
-				double z = r * sin(s * TAU / rSeg);
-
-				double u = (i + k) / (float)rSeg;
-				double v = t / (float)cSeg;
-
-				glTexCoord2d(u, v);
-				glNormal3f(2 * x, 2 * y, 2 * z);
-				glVertex3d(2 * x, 2 * y, 2 * z);
-			}
-		}
-		glEnd();
-	}
-
-	glFrontFace(GL_CCW);
-}
-
-void drawLantern(GLfloat x, GLfloat y, GLfloat z, GLenum light) {
-	glPushMatrix();
-
-	//переносим фонарь
-	glTranslatef(x, y, z);
-
-	glRotatef(-90.0f, 1.0f, 0.0f, 0.0f);
-	//рисуем столб
-	GLUquadricObj* quadricObj;
-	quadricObj = gluNewQuadric();
-	glBindTexture(GL_TEXTURE_2D, metal_tex);
-	gluQuadricOrientation(quadricObj, GLU_OUTSIDE);
-	gluQuadricTexture(quadricObj, GL_TRUE);
-
-	gluCylinder(quadricObj, 2.0f, 2.0f, 45.0f, 30, 30);
-
-	gluDeleteQuadric(quadricObj);
-
-	//задаем свечение лампы
-	if (lanternsOn) {
-		float emission[] = { 0.3, 0.3, 0.3, 1.0 };
-		glMaterialfv(GL_FRONT, GL_EMISSION, emission);
-	}
+	option_list = 0;
+	option_char = 'z';
+	options.clear();
+	speeds.clear();
 	
-	glBindTexture(GL_TEXTURE_2D, lantern_tex);
+	for (int i = 0; i < 3; i++)
+	{
+		options.push_back(std::map<char, int>());
+		speeds.push_back(std::map<char, int>());
+		options[i]['z'] = 0;
+		options[i]['y'] = 0;
+		options[i]['z'] = 0;
+		options[i]['r'] = 0;
+		options[i]['g'] = 0;
+		options[i]['b'] = 0;
 
-	glTranslatef(0.0f, 0.0f, 45.0f);
-	glScalef(1.0f, 1.0f, 1.3f);
-
-	//glColor3f(1.0f, 0.7f, 0.1f);
-
-	//задаем источник света для лампы
-	GLfloat pos[] = { 0.0f, 0.0f, 0.0f, 1.0f };
-	glLightfv(light, GL_POSITION, pos);
-	GLfloat diffuse[] = { 1.0f, 0.8f, 0.3f };
-	glLightfv(light, GL_DIFFUSE, diffuse);
-	glLightf(light, GL_LINEAR_ATTENUATION, 0.005);
-
-	drawCubeSimplified(2.5f);
-
-	//зчищаем свечение текстуры
-	if (lanternsOn) {
-		float clear_emission[] = { 0.0, 0.0, 0.0, 1.0 };
-		glMaterialfv(GL_FRONT, GL_EMISSION, clear_emission);
+		speeds[i]['z'] = 5;
+		speeds[i]['y'] = 5;
+		speeds[i]['z'] = 5;
+		speeds[i]['r'] = 5;
+		speeds[i]['g'] = 5;
+		speeds[i]['b'] = 5;
 	}
+	options[1]['r'] = 255;
+	options[2]['g'] = 255;
 
-	//glColor3f(1.0f, 1.0f, 1.0f);
-	glPopMatrix();
+
+	options[1]['w'] = 50;
+	speeds[1]['w'] = 5;
+	options[1]['d'] = 1;
+	speeds[1]['d'] = 1;
 }
 
-void drawSquare() {
-	glPushMatrix();
-
-	//drawing a square with paving stone texture
-	glScalef(1.0f, square_y_scale, 1.0f);
-	glBindTexture(GL_TEXTURE_2D, square_tex);
-	drawCubeSimplified(square_size_raw / 2);
-	glPopMatrix();
-
-	//drawing lanterns
-	drawLantern(-80.f, 0.f, 73.f, GL_LIGHT1);
-	drawLantern(-70.f, 0.f, -95.f, GL_LIGHT2);
-	drawLantern(100.f, 0.f, 65.f, GL_LIGHT3);
-	drawLantern(90.f, 0.f, -100.f, GL_LIGHT4);
-
-	glPushMatrix();
-	glBindTexture(GL_TEXTURE_2D, gift_tex);
-
-	glPushMatrix();
-	glTranslatef(-50.f, 18.f, 60.f);
-	glRotatef(45.f, 0.f, 1.f, 0.f);
-	drawCubeSimplified(8.f);
-	glPopMatrix();
-
-	glPushMatrix();
-	glTranslatef(80.f, 15.f, 40.f);
-	glRotatef(15.f, 0.f, 1.f, 0.f);
-	glRotatef(90.f, 1.f, 0.f, 0.f);
-	drawCubeSimplified(5.f);
-	glPopMatrix();
-
-	glPushMatrix();
-	glTranslatef(105.f, 17.5f, -90.f);
-	drawCubeSimplified(7.f);
-	glPopMatrix();
-
-	glPopMatrix();
+//! Проверка ошибок OpenGL, если есть то вывод в консоль тип ошибки 
+void checkOpenGLerror() {
+	GLenum errCode;
+	if ((errCode = glGetError()) != GL_NO_ERROR)
+		std::cout << "OpenGl error! - " << gluErrorString(errCode);
 }
 
-double degToRad(double deg)
+//! Инициализация шейдеров 
+GLuint initShader(std::string filename)
 {
-	const double halfC = M_PI / 180;
-	return deg * halfC;
+	std::ifstream t(filename);
+	std::string str((std::istreambuf_iterator<char>(t)),
+		std::istreambuf_iterator<char>());
+	const char* fsSource = str.c_str();
+
+
+	//! Переменные для хранения идентификаторов шейдеров 
+	GLuint fShader;
+	//! Создаем фрагментный шейдер
+	fShader = glCreateShader(GL_FRAGMENT_SHADER);
+	//! Передаем исходный код 
+	glShaderSource(fShader, 1, &fsSource, NULL);
+	//! Компилируем шейдер
+	glCompileShader(fShader);
+
+	//! Создаем программу и прикрепляем шейдеры к ней
+	GLuint Program = glCreateProgram();
+	glAttachShader(Program, fShader);
+
+	//! Линкуем шейдерную программу
+	glLinkProgram(Program); 
+
+	//! Проверяем статус сборки 
+	int link_ok;
+	glGetProgramiv(Program, GL_LINK_STATUS, &link_ok);
+	if (!link_ok)
+	{
+		std::cout << "error attach shaders \n";
+		return -1;
+	}
+
+	return Program;
 }
 
-void setupCarLight(GLenum light) {
-	GLfloat pos[] = { 0.0f, 0.0f, 0.0f, 1.0f };
-	glLightfv(light, GL_POSITION, pos);
-	GLfloat diffuse[] = { 1.0f, 0.8f, 0.8f };
-	glLightfv(light, GL_DIFFUSE, diffuse);
-	GLfloat spot_dir[] = {1.f, -0.3f, 0.f };
-	glLightfv(light, GL_SPOT_DIRECTION, spot_dir);
-	glLightf(light, GL_SPOT_CUTOFF, 30.0);
-	glLightf(light, GL_SPOT_EXPONENT, 10.0);
-	glLightf(light, GL_LINEAR_ATTENUATION, 0.01);
-}
-
-void drawCar()
+GLint getUniform(std::string unif_name, GLuint Program)
 {
-	glPushMatrix();
-	car_rotate += side_speed * dt * current_side_speedup / side_speedup;
-	float yRad = degToRad(car_rotate);
-	car_center[2] -= float(sin(yRad) * forward_speed * dt * current_forward_speedup  / forward_speedup);
-	car_center[0] += float(cos(yRad) * forward_speed * dt * current_forward_speedup / forward_speedup);
-	glTranslatef(car_center[0], car_center[1], car_center[2]);
-	glRotatef(car_rotate, 0, 1, 0);
-	// texture for head of car
-	glBindTexture(GL_TEXTURE_2D, truck_tex);
-	drawCubeSimplified(head_size / 2);
-
-	glPushMatrix();
-	glTranslatef(tail_center[0], tail_center[1], tail_center[2]);
-	// texture for tail of car
-	glBindTexture(GL_TEXTURE_2D, cola_tex);
-	drawCubeSimplified(tail_size / 2);
-
-	// texture for wheels
-	int wheel_texture = wheels_tex;
-
-	glPushMatrix();
-	glTranslatef(wheel_center[0], wheel_center[1], wheel_center[2]);
-	glRotatef(side_speed * current_side_speedup / side_speedup, 0, 1, 0);
-	drawTorus(tire_size / 2, wheel_size / 2 - tire_size, wheel_slices, wheel_loops, wheel_texture);
-	glPopMatrix();
-
-	glPushMatrix();
-	glTranslatef(wheel_center[0], wheel_center[1], -wheel_center[2]);
-	glRotatef(side_speed * current_side_speedup / side_speedup, 0, 1, 0);
-
-	drawTorus(tire_size / 2, wheel_size / 2 - tire_size, wheel_slices, wheel_loops, wheel_texture);
-	glPopMatrix();
-
-	glPushMatrix();
-	glTranslatef(-wheel_center[0], wheel_center[1], wheel_center[2]);
-	drawTorus(tire_size / 2, wheel_size / 2 - tire_size, wheel_slices, wheel_loops, wheel_texture);
-	glPopMatrix();
-
-	glPushMatrix();
-	glTranslatef(-wheel_center[0], wheel_center[1], -wheel_center[2]);
-	drawTorus(tire_size / 2, wheel_size / 2 - tire_size, wheel_slices, wheel_loops, wheel_texture);
-	glPopMatrix();
-
-	glPopMatrix();
-
-	GLUquadricObj* quadricObj;
-	quadricObj = gluNewQuadric();
-	glBindTexture(GL_TEXTURE_2D, lantern_tex);
-	gluQuadricOrientation(quadricObj, GLU_OUTSIDE);
-	gluQuadricTexture(quadricObj, GL_TRUE);
-
-	//Одна фара
-	glPushMatrix();
-
-	float emission[] = { 0.5, 0.5, 0.5, 1.0 };
-	float clear_emission[] = { 0.0, 0.0, 0.0, 1.0 };
-	glTranslatef(headlamp_center[0], headlamp_center[1], -headlamp_center[2]);
-
-	if (carLightingOn) {
-		glMaterialfv(GL_FRONT, GL_EMISSION, emission);
+	//! Вытягиваем ID юниформ  	
+	GLint result = glGetUniformLocation(Program, unif_name.c_str());
+	if (result == -1)
+	{
+		std::cout << "could not bind uniform " << unif_name << std::endl;
+		return -1;
 	}
-	
-	setupCarLight(GL_LIGHT5);
-	gluSphere(quadricObj, headlamp_size / 2, headlamp_slices, headlamp_stacks);
-
-	if (carLightingOn) {
-		glMaterialfv(GL_FRONT, GL_EMISSION, clear_emission);
-	}
-
-	glPopMatrix();
-
-	//Вторая фара
-	glPushMatrix();
-	glTranslatef(headlamp_center[0], headlamp_center[1], headlamp_center[2]);
-
-	if (carLightingOn) {
-		glMaterialfv(GL_FRONT, GL_EMISSION, emission);
-	}
-
-	setupCarLight(GL_LIGHT6);
-	gluSphere(quadricObj, headlamp_size / 2, headlamp_slices, headlamp_stacks);
-	if (carLightingOn) {
-		glMaterialfv(GL_FRONT, GL_EMISSION, clear_emission);
-	}
-
-	glPopMatrix();
-
-	glPopMatrix();
+	checkOpenGLerror();
+	return result;
 }
 
-void Init(void) {
-	glClearColor(0.0f, 0.0f, .0f, .0f);
-	glEnable(GL_TEXTURE_2D);
 
-	glEnable(GL_LIGHTING);
-
-	glEnable(GL_DEPTH_TEST);
-	glDepthMask(GL_TRUE);
-	glDepthFunc(GL_LEQUAL);
-	glDepthRange(0.0f, 1.0f);
-	LoadAUXTextures();
-
-	old_t = glutGet(GLUT_ELAPSED_TIME);
-}
-
-void KeyHandler()
+//! Освобождение шейдеров 
+void freeShader()
 {
-	if (buffer['w'])
-	{
-		current_forward_speedup = std::fmin(current_forward_speedup + dt, forward_speedup);
-	}
-	else if (buffer['s'])
-	{
-		current_forward_speedup = std::fmax(current_forward_speedup - dt, -forward_speedup);
-	}
-	else
-	{
-		current_forward_speedup = sgn(current_forward_speedup) * std::fmax(0, sgn(current_forward_speedup) * current_forward_speedup - dt);
-	}
-
-	if (buffer['a'])
-	{
-		current_side_speedup = std::fmin(current_side_speedup + dt, side_speedup);
-	}
-	else if (buffer['d'])
-	{
-		current_side_speedup = std::fmax(current_side_speedup - dt, -side_speedup);
-	}
-	else
-		current_side_speedup = sgn(current_side_speedup) * std::fmax(0, sgn(current_side_speedup) * current_side_speedup - dt);
-
+	//! Передавая ноль, мы отключаем шейдрную программу  	
+	glUseProgram(0);
+	//! Удаляем шейдерную программу  	
+	glDeleteProgram(Program);
+}
+void resizeWindow(int width, int height)
+{
+	glViewport(0, 0, width, height);
 }
 
-void Update(void) {
-	t = glutGet(GLUT_ELAPSED_TIME);
-	dt = (t - old_t) / 1000.0;
-	old_t = t;
-	glMatrixMode(GL_MODELVIEW);
+//! Отрисовка 
+void render2()
+{
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	KeyHandler();
+
 	glLoadIdentity();
 
-	//Задаем положение и вектор обзора
-	gluLookAt(150.0f, 150.0f, 150.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+	glPushMatrix();
+	
+	glRotatef(options[0]['z'], 0.0, 0.0, 1.0);
+	glRotatef(options[0]['y'], 0.0, 1.0, 0.0);
+	glRotatef(options[0]['x'], 1.0, 0.0, 0.0);
 
-	//Работаем с освещением
-	if (lanternsOn) {
-		glEnable(GL_LIGHT1);
-		glEnable(GL_LIGHT2);
-		glEnable(GL_LIGHT3);
-		glEnable(GL_LIGHT4);
-	}
-	else {
-		glDisable(GL_LIGHT1);
-		glDisable(GL_LIGHT2);
-		glDisable(GL_LIGHT3);
-		glDisable(GL_LIGHT4);
-	}
-	if (carLightingOn) {
-		glEnable(GL_LIGHT5);
-		glEnable(GL_LIGHT6);
-	}
-	else {
-		glDisable(GL_LIGHT5);
-		glDisable(GL_LIGHT6);
-	}
+	//! Устанавливаем шейдерную программу текущей
+	glUseProgram(Program); 
+	////! Передаем юниформ в шейдер
+	glUniform4f(ucolor, options[0]['r'] / 255.f, options[0]['g'] / 255.f, options[0]['b'] / 255.f, 1.f);
 
-	drawSquare();
-	drawCar();
+	glTranslatef(0, -.5f, 0);
+
+	glBegin(GL_QUADS);
+	glColor3f(1.0, 0.0, 0.0); glVertex2f(-0.5f, -0.5f);
+	glColor3f(0.0, 1.0, 0.0); glVertex2f(-0.5f, 0.5f);
+	glColor3f(0.0, 0.0, 1.0); glVertex2f(0.5f, 0.5f);
+	glColor3f(1.0, 1.0, 1.0); glVertex2f(0.5f, -0.5f);
+	glEnd();
+
+	glPopMatrix();
+
+	//! Отключаем шейдерную программу 
+	glUseProgram(0);
+
+	glPushMatrix();
+	//! Устанавливаем шейдерную программу текущей
+	glUseProgram(program2);
+	//////! Передаем юниформ в шейдер
+	glUniform4f(ucolor1, options[1]['r'] / 255.f, options[1]['g'] / 255.f, options[1]['b'] / 255.f, 1.f);
+	glUniform4f(ucolor2, options[2]['r'] / 255.f, options[2]['g'] / 255.f, options[2]['b'] / 255.f, 1.f);
+	glUniform1i(uwidth, options[1]['w']);
+	glUniform1i(udir, options[1]['d'] % 2);
+
+	glTranslatef(0, .5f, 0);
+
+	glBegin(GL_QUADS);
+	glColor3f(1.0, 0.0, 0.0); glVertex2f(-0.5f, -0.5f);
+	glColor3f(0.0, 1.0, 0.0); glVertex2f(-0.5f, 0.5f);
+	glColor3f(0.0, 0.0, 1.0); glVertex2f(0.5f, 0.5f);
+	glColor3f(1.0, 1.0, 1.0); glVertex2f(0.5f, -0.5f);
+	glEnd();
+
+	glPopMatrix();
+
+	//! Отключаем шейдерную программу 
+	glUseProgram(0);
 
 	glFlush();
+
+	checkOpenGLerror();
+
 	glutSwapBuffers();
 }
+void specialKeys(int key, int x, int y) {
 
-void Reshape(int width, int height) {
-	w = width;
-	h = height;
-
-	glViewport(0, 0, w, h);
-	//Перспективное преобразование
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	//Задаем матрицу перспективного преобразования
-	gluPerspective(65.0f, w / h, 1.0f, 1000.0f);
+	switch (key) {
+	case GLUT_KEY_PAGE_UP: rotate_z += 5; break;
+	case GLUT_KEY_PAGE_DOWN: rotate_z -= 5; break;
+	}
+	glutPostRedisplay();
 }
 
-
-void keyboardDown(unsigned char key, int x, int y)
+void keyFunc(unsigned char key, int x, int y)
 {
-	buffer[key] = true;
 	switch (key)
 	{
-	case 'l':
-		lanternsOn = !lanternsOn;
+	case '=':
+		options[option_list][option_char] += speeds[option_list][option_char];
 		break;
-	case 'k':
-		carLightingOn = !carLightingOn;
+	case '-':
+		options[option_list][option_char] -= speeds[option_list][option_char];
+		break;
+	case '0':
+	case '1':
+	case '2':
+		option_list = key - '0';
+		break;
+	case 'r':
+	case 'g':
+	case 'b':
+	case 'x':
+	case 'y':
+	case 'z':
+	case 'd':
+	case 'w':
+		option_char = key;
 		break;
 	default:
 		break;
 	}
+	glutPostRedisplay();
 }
 
-void keyboardUp(unsigned char key, int x, int y)
+int main(int argc, char **argv)
 {
-	buffer[key] = false;
-}
-
-int main(int argc, char* argv[]) {
-
 	glutInit(&argc, argv);
-	glutInitWindowPosition(100, 100);
+	glutInitDisplayMode(GLUT_DEPTH | GLUT_RGBA | GLUT_ALPHA | GLUT_DOUBLE);
 	glutInitWindowSize(800, 800);
-	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE);
-	glutCreateWindow("OpenGL");
+	glutCreateWindow("Simple shaders");
+	glClearColor(0, 0, 1, 0);
+	setup_options();
 
-	glutIdleFunc(Update);
-	glutDisplayFunc(Update);
-	glutReshapeFunc(Reshape);
+	//! Обязательно перед инициализацией шейдеров  	
+	GLenum glew_status = glewInit();
+	if (GLEW_OK != glew_status)
+	{
+		//! GLEW не проинициализировалась 
+		std::cout << "Error: " << glewGetErrorString(glew_status) << "\n";  	 	return 1;
+	}
 
-	Init();
-	glutKeyboardFunc(keyboardDown);
-	glutKeyboardUpFunc(keyboardUp);
-	//glutSpecialFunc(keyboardSpecialKeys);
+	//! Проверяем доступность OpenGL 2.0 
+	if (!GLEW_VERSION_2_0)
+	{
+		//! OpenGl 2.0 оказалась не доступна  	 	
+		std::cout << "No support for OpenGL 2.0 found\n";
+		return 1;
+	}
+
+	//! Инициализация шейдеров 
+
+	Program = initShader("shader01.cpp");
+	ucolor = getUniform("color", Program);
+
+	program2 = initShader("shader02.cpp");
+	ucolor1 = getUniform("color1", program2);
+	ucolor2 = getUniform("color2", program2);
+	udir = getUniform("dir_x", program2);
+	uwidth = getUniform("width", program2);
+
+	glutReshapeFunc(resizeWindow);
+	//glutIdleFunc(render2);
+	glutDisplayFunc(render2);
+	
+	glutSpecialFunc(specialKeys);
+	glutKeyboardFunc(keyFunc);
 	glutMainLoop();
-	return 0;
+
+	//! Освобождение ресурсов 
+	freeShader();
 }
