@@ -66,8 +66,11 @@ unsigned int gift_tex;
 AUX_RGBImageRec* truck_img;
 unsigned int truck_tex;
 
-GLdouble xrot = 0.0;
-GLdouble yrot = 0.0;
+
+GLdouble scale = 150.0;
+GLdouble angle = 0.0;
+GLdouble camX = scale * sin(angle);
+GLdouble camZ = scale * cos(angle);
 
 void LoadAUXTextures() {
 	square_img = auxDIBImageLoad("sources\\paving_stone_texture.bmp");
@@ -314,15 +317,17 @@ double degToRad(double deg)
 	return deg * halfC;
 }
 
+
 void setupCamLight(GLenum light) {
-	GLfloat pos[] = { 0.0f, 0.0f, 0.0f, 1.0f };
-	glLightfv(light, GL_POSITION, pos);
-	GLfloat diffuse[] = { 1.0f, 0.8f, 0.8f };
+	GLfloat pos[] = { camX, scale, camZ };
+	glLightfv(GL_LIGHT0, GL_POSITION, pos);
+	GLfloat diffuse[] = { 1.0f, 1.0f, 1.0f };
 	glLightfv(light, GL_DIFFUSE, diffuse);
-	GLfloat spot_dir[] = { 0.f, 0.0f, 0.0f };
+	GLfloat spot_dir[] = { 0.f, 0.f, 0.f };
 	glLightfv(light, GL_SPOT_DIRECTION, spot_dir);
-	glLightf(light, GL_SPOT_CUTOFF, 30.0);
-	glLightf(light, GL_SPOT_EXPONENT, 10.0);
+
+	
+	glLightf(light, GL_SPOT_EXPONENT, 5.0);
 	glLightf(light, GL_LINEAR_ATTENUATION, 0.01);
 }
 
@@ -484,14 +489,16 @@ void Update(void) {
 	KeyHandler();
 	glLoadIdentity();
 
-	
-
+	 camX = scale * sin(angle);
+	 camZ = scale * cos(angle);
 	//Задаем положение и вектор обзора
-	gluLookAt(150.0f+xrot, 150.0f+yrot, 150.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 
-	setupCamLight(GL_LIGHT0);
+	 setupCamLight(GL_LIGHT0);
+	 glEnable(GL_LIGHT0);
 
-	glEnable(GL_LIGHT0);
+	gluLookAt(camX, scale, camZ, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+
+	
 
 	//Работаем с освещением
 	if (lanternsOn) {
@@ -517,7 +524,6 @@ void Update(void) {
 
 	drawSquare();
 	drawCar();
-
 
 	glFlush();
 	glutSwapBuffers();
@@ -548,15 +554,12 @@ void keyboardDown(unsigned char key, int x, int y)
 		carLightingOn = !carLightingOn;
 		break;
 	case 'f':
-		xrot -= 2.0;
+		angle -= 0.1;
 		break;
 	case 'h':
-		xrot += 2.0;
-	case 't':
-		yrot += 2.0;
+		angle += 0.1;
 		break;
-	case 'g':
-		yrot -= 2.0;
+	
 	default:
 		break;
 	}
@@ -565,6 +568,20 @@ void keyboardDown(unsigned char key, int x, int y)
 void keyboardUp(unsigned char key, int x, int y)
 {
 	buffer[key] = false;
+}
+
+void mouseWheel(int button, int dir, int x, int y)
+{
+	if (dir > 0)
+	{
+		scale += 15;
+	}
+	else
+	{
+		scale -= 15;
+	}
+
+	return;
 }
 
 int main(int argc, char* argv[]) {
@@ -583,6 +600,8 @@ int main(int argc, char* argv[]) {
 	glutKeyboardFunc(keyboardDown);
 	glutKeyboardUpFunc(keyboardUp);
 	//glutSpecialFunc(keyboardSpecialKeys);
+	glutMouseWheelFunc(mouseWheel);
+
 	glutMainLoop();
 	return 0;
 }
