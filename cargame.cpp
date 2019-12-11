@@ -314,6 +314,18 @@ double degToRad(double deg)
 	return deg * halfC;
 }
 
+void setupCamLight(GLenum light) {
+	GLfloat pos[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	glLightfv(light, GL_POSITION, pos);
+	GLfloat diffuse[] = { 1.0f, 0.8f, 0.8f };
+	glLightfv(light, GL_DIFFUSE, diffuse);
+	GLfloat spot_dir[] = { 0.f, 0.0f, 0.0f };
+	glLightfv(light, GL_SPOT_DIRECTION, spot_dir);
+	glLightf(light, GL_SPOT_CUTOFF, 30.0);
+	glLightf(light, GL_SPOT_EXPONENT, 10.0);
+	glLightf(light, GL_LINEAR_ATTENUATION, 0.01);
+}
+
 void setupCarLight(GLenum light) {
 	GLfloat pos[] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	glLightfv(light, GL_POSITION, pos);
@@ -415,6 +427,8 @@ void drawCar()
 
 	glPopMatrix();
 
+	
+
 	glPopMatrix();
 }
 
@@ -470,8 +484,14 @@ void Update(void) {
 	KeyHandler();
 	glLoadIdentity();
 
+	
+
 	//Задаем положение и вектор обзора
 	gluLookAt(150.0f+xrot, 150.0f+yrot, 150.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+
+	setupCamLight(GL_LIGHT0);
+
+	glEnable(GL_LIGHT0);
 
 	//Работаем с освещением
 	if (lanternsOn) {
@@ -497,6 +517,7 @@ void Update(void) {
 
 	drawSquare();
 	drawCar();
+
 
 	glFlush();
 	glutSwapBuffers();
