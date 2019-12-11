@@ -66,6 +66,9 @@ unsigned int gift_tex;
 AUX_RGBImageRec* truck_img;
 unsigned int truck_tex;
 
+GLdouble xrot = 0.0;
+GLdouble yrot = 0.0;
+
 void LoadAUXTextures() {
 	square_img = auxDIBImageLoad("sources\\paving_stone_texture.bmp");
 	glGenTextures(1, &square_tex);
@@ -468,7 +471,7 @@ void Update(void) {
 	glLoadIdentity();
 
 	//Задаем положение и вектор обзора
-	gluLookAt(150.0f, 150.0f, 150.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+	gluLookAt(150.0f+xrot, 150.0f+yrot, 150.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 
 	//Работаем с освещением
 	if (lanternsOn) {
@@ -523,6 +526,16 @@ void keyboardDown(unsigned char key, int x, int y)
 	case 'k':
 		carLightingOn = !carLightingOn;
 		break;
+	case 'f':
+		xrot -= 2.0;
+		break;
+	case 'h':
+		xrot += 2.0;
+	case 't':
+		yrot += 2.0;
+		break;
+	case 'g':
+		yrot -= 2.0;
 	default:
 		break;
 	}
