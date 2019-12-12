@@ -123,12 +123,12 @@ void keyboardDown(unsigned char key, int x, int y) {
 	switch (key)
 	{
 	case 'w':
-		scale_x += 5.0;
-		scale_y += 5.0;
+		scale_x += 0.5;
+		scale_y += 0.5;
 		break;
 	case 's':
-		scale_x -= 5.0;
-		scale_y -= 5.0;
+		scale_x -= 0.5;
+		scale_y -= 0.5;
 		break;
 	default:
 		break;
@@ -143,24 +143,24 @@ void render2() {
 
 	glUseProgram(Program);
 
-	static glm::mat4 scale = { scale_x, 0.0f, 0.0f, 0.0f,
+	 glm::mat4 scale = { scale_x, 0.0f, 0.0f, 0.0f,
 								0.0f, scale_y, 0.0f, 0.0f,
 								0.0f, 0.0f, 1.0f, 0.0f,
 								0.0f, 0.0f, 0.0f, 1.0f };
 
 	float a = angle * 3.14f / 180.0f;
 
-	static glm::mat4 rotateX = { 1.0f, 0.0f, 0.0f, 0.0f,
+	 glm::mat4 rotateX = { 1.0f, 0.0f, 0.0f, 0.0f,
 								0.0f, glm::cos(a), -glm::sin(a), 0.0f,
 								0.0f, glm::sin(a), glm::cos(a), 0.0f,
 								0.0f, 0.0f, 0.0f, 1.0f };
 
-	static glm::mat4 rotateZ = { glm::cos(a), -glm::sin(a), 0.0f, 0.0f,
+	 glm::mat4 rotateZ = { glm::cos(a), -glm::sin(a), 0.0f, 0.0f,
 								glm::sin(a), glm::cos(a), 0.0f, 0.0f,
 								0.0f, 0.0f, 1.0f, 0.0f,
 								0.0f, 0.0f, 0.0f, 1.0f };
 
-	static glm::mat4 rotateY = { glm::cos(a),0.0f, glm::sin(a), 0.0f,
+	 glm::mat4 rotateY = { glm::cos(a),0.0f, glm::sin(a), 0.0f,
 								0.0f, 1.0f, 0.0f, 0.0f,
 								-glm::sin(a), 0.0f, glm::cos(a), 0.0f,
 								0.0f, 0.0f, 0.0f, 1.0f };
@@ -216,6 +216,7 @@ int main(int argc, char** argv) {
 
 	glutReshapeFunc(resizeWindow);
 	
+	glutIdleFunc(render2);
 
 	glutDisplayFunc(render2);
 	glutKeyboardFunc(keyboardDown);
