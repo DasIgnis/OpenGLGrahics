@@ -22,24 +22,18 @@
 
 using namespace std;
 //----------------------------ANGLE
-float angle = 5.0f;
+float angle = 2.0f;
 //----------------------------SCALE Õ
 float scale_x = 0.5f;
 //----------------------------SCALE Y
 float scale_y = 0.5f;
 
-//----------------------------MATRIX TRANSFORM
-//----------------------------  == 0 - scale, != 0 - rotate
-char mode = 0;
+enum Axis {X,Y,Z};
 
+Axis ax = Z;
 
+bool mode = false;
 
-
-
-
-float rotate_z = 1.0f;
-
-//-------------------------------------------------------------------
 int w, h;
 
 GLuint Program;
@@ -123,13 +117,20 @@ void keyboardDown(unsigned char key, int x, int y) {
 	switch (key)
 	{
 	case 'w':
-		scale_x += 0.5;
-		scale_y += 0.5;
+		scale_x += 0.01;
+		scale_y += 0.01;
 		break;
 	case 's':
-		scale_x -= 0.5;
-		scale_y -= 0.5;
+		scale_x -= 0.01;
+		scale_y -= 0.01;
 		break;
+	case 'd':
+		angle -= 1;
+		break;
+	case 'a':
+		angle += 1;
+	case 'e':
+		mode = !mode;
 	default:
 		break;
 	}
@@ -144,9 +145,9 @@ void render2() {
 	glUseProgram(Program);
 
 	 glm::mat4 scale = { scale_x, 0.0f, 0.0f, 0.0f,
-								0.0f, scale_y, 0.0f, 0.0f,
-								0.0f, 0.0f, 1.0f, 0.0f,
-								0.0f, 0.0f, 0.0f, 1.0f };
+						0.0f, scale_y, 0.0f, 0.0f,
+						0.0f, 0.0f, 0.0f, 0.0f,
+						0.0f, 0.0f, 0.0f, 1.0f };
 
 	float a = angle * 3.14f / 180.0f;
 
@@ -165,9 +166,19 @@ void render2() {
 								-glm::sin(a), 0.0f, glm::cos(a), 0.0f,
 								0.0f, 0.0f, 0.0f, 1.0f };
 
-	if (mode)
-		glUniformMatrix4fv(Unif_matr, 1, GL_FALSE, &rotateX[0][0]);
-	else
+//	if (mode)
+		switch (ax) {
+		case(X):
+			glUniformMatrix4fv(Unif_matr, 1, GL_FALSE, &rotateX[0][0]);
+			break;
+		case(Y):
+			glUniformMatrix4fv(Unif_matr, 1, GL_FALSE, &rotateY[0][0]);
+			break;
+		case(Z):
+			glUniformMatrix4fv(Unif_matr, 1, GL_FALSE, &rotateZ[0][0]);
+			break;
+		}
+	//else
 		glUniformMatrix4fv(Unif_matr, 1, GL_FALSE, &scale[0][0]);
 
 	glm::mat4 Projection = glm::perspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 100.0f);
