@@ -22,7 +22,7 @@
 
 using namespace std;
 //----------------------------ANGLE
-float angle = 2.0f;
+float angle = 5.0f;
 //----------------------------SCALE Õ
 float scale_x = 0.5f;
 //----------------------------SCALE Y
@@ -30,9 +30,9 @@ float scale_y = 0.5f;
 
 enum Axis {X,Y,Z};
 
-Axis ax = Z;
+Axis ax = X;
 
-bool mode = false;
+bool mode = true;
 
 int w, h;
 
@@ -129,6 +129,7 @@ void keyboardDown(unsigned char key, int x, int y) {
 		break;
 	case 'a':
 		angle += 1;
+		break;
 	case 'e':
 		mode = !mode;
 	default:
@@ -146,7 +147,7 @@ void render2() {
 
 	 glm::mat4 scale = { scale_x, 0.0f, 0.0f, 0.0f,
 						0.0f, scale_y, 0.0f, 0.0f,
-						0.0f, 0.0f, 0.0f, 0.0f,
+						0.0f, 0.0f, 1.0f, 0.0f,
 						0.0f, 0.0f, 0.0f, 1.0f };
 
 	float a = angle * 3.14f / 180.0f;
@@ -166,7 +167,7 @@ void render2() {
 								-glm::sin(a), 0.0f, glm::cos(a), 0.0f,
 								0.0f, 0.0f, 0.0f, 1.0f };
 
-//	if (mode)
+	if (mode)
 		switch (ax) {
 		case(X):
 			glUniformMatrix4fv(Unif_matr, 1, GL_FALSE, &rotateX[0][0]);
@@ -178,7 +179,7 @@ void render2() {
 			glUniformMatrix4fv(Unif_matr, 1, GL_FALSE, &rotateZ[0][0]);
 			break;
 		}
-	//else
+	else
 		glUniformMatrix4fv(Unif_matr, 1, GL_FALSE, &scale[0][0]);
 
 	glm::mat4 Projection = glm::perspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 100.0f);
@@ -207,6 +208,36 @@ void render2() {
 	glutSwapBuffers();
 }
 
+
+void specialKey(int key, int x, int y) {
+	switch ((int)key) {
+	case GLUT_KEY_F1:
+		ax = X;
+		break;
+	case GLUT_KEY_F2:
+		ax = Y;
+		break;
+	case GLUT_KEY_F3:
+		ax = Z;
+		break;
+	}
+}
+
+void mouseWheel(int button, int dir, int x, int y)
+{
+	if (dir > 0)
+	{
+		scale_x += 0.02;
+		scale_y += 0.02;
+	}
+	else
+	{
+		scale_x -= 0.02;
+		scale_y -= 0.02;
+	}
+
+	return;
+}
 int main(int argc, char** argv) {
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_DEPTH | GLUT_RGBA | GLUT_ALPHA | GLUT_DOUBLE);
@@ -227,10 +258,14 @@ int main(int argc, char** argv) {
 
 	glutReshapeFunc(resizeWindow);
 	
+
+	glutSpecialFunc(specialKey);
 	glutIdleFunc(render2);
 
 	glutDisplayFunc(render2);
 	glutKeyboardFunc(keyboardDown);
+	glutMouseWheelFunc(mouseWheel);
+
 	glutMainLoop();
 
 	freeShader();
