@@ -10,6 +10,7 @@
 #include "GL/freeglut.h"
 #include "include/glaux.h"
 #include "include/glm/glm.hpp"
+#include "include/glm/gtc/matrix_transform.hpp"
 
 int w, h;
 
@@ -19,6 +20,8 @@ GLuint VAO, VBO, EBO;
 
 GLint Attrib_vertex;
 GLint Unif_color;
+GLint Unif_matr;
+GLint Unif_MVP;
 
 GLint Model_vertices_count;
 
@@ -146,7 +149,7 @@ void setupBuffers() {
 	std::vector<glm::vec3> vertices;
 	std::vector<glm::vec2> textCoords;
 	std::vector<glm::vec3> normals;
-	bool res = loadModel("cube.obj", vertices, textCoords, normals);
+	bool res = loadModel("african_head.obj", vertices, textCoords, normals);
 	Model_vertices_count = vertices.size();
 
 	glGenBuffers(1, &VBO);
@@ -166,8 +169,9 @@ void initShader() {
 	const char* vsSource =
 		"#version 330\n"
 		"attribute vec3 coord;\n"
+		"uniform mat4 MVP;"
 		"void main() {\n"
-		"	gl_Position = vec4(coord, 1.0);\n"
+		"	gl_Position = MVP * vec4(coord, 1.0);\n"
 		"}\n";
 
 	const char* fsSource =
@@ -219,6 +223,20 @@ void initShader() {
 		return;
 	};
 
+	/*const char* unif_name2 = "matrix";
+	Unif_matr = glGetUniformLocation(Program, unif_name2);
+	if (Unif_matr == -1) {
+		std::cout << "could not bind uniform " << unif_name2 << std::endl;
+		return;
+	};*/
+
+	const char* unif_name3 = "MVP";
+	Unif_MVP = glGetUniformLocation(Program, unif_name3);
+	if (Unif_MVP == -1) {
+		std::cout << "could not bind uniform " << unif_name3 << std::endl;
+		return;
+	};
+
 	checkOpenGLerror();
 }
 
@@ -240,10 +258,21 @@ void render2() {
 	// ! Передаем юниформ в шейдер
 	glUniform4fv(Unif_color, 1, red);
 
+	glm::mat4 Projection = glm::perspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 200.0f);
+	glm::mat4 View = glm::lookAt(
+		glm::vec3(4, 3, 3),
+		glm::vec3(0, 0, 0),
+		glm::vec3(0, 1, 0)
+	);
+	glm::mat4 Model = glm::mat4(1.0f);
+	glm::mat4 MVP = Projection * View * Model;
+	glUniformMatrix4fv(Unif_MVP, 1, GL_FALSE, &MVP[0][0]);
+
+
 	glEnableVertexAttribArray(Attrib_vertex);
 	// ! Подключаем VBO
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glVertexAttribPointer(Attrib_vertex, 2, GL_FLOAT, GL_FALSE, 0, 0);
+	glVertexAttribPointer(Attrib_vertex, 3, GL_FLOAT, GL_FALSE, 0, 0);
 	// ! Отключаем VBO
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	// ! Передаем данные на видеокарту (рисуем)
