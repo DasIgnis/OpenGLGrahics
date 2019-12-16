@@ -18,7 +18,7 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="cargame.cpp">
+    <ClCompile Include="headModel.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
   </ItemGroup>
