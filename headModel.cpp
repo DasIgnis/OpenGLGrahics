@@ -14,18 +14,42 @@
 
 int w, h;
 
+float angle = 5.0f;
+
 GLuint Program;
 
 GLuint VAO, VBO, EBO;
+GLuint VAO_tex, VBO_tex, EBO_tex;
 
 GLint Attrib_vertex;
+GLint Attrib_texture;
+GLint Attrib_normal;
 GLint Unif_color;
 GLint Unif_matr;
 GLint Unif_MVP;
+GLint Unif_texture;
 
 GLint Model_vertices_count;
+GLint Model_textures_count;
 
-bool loadModel(const char* path, std::vector<glm::vec3>& vertices, std::vector<glm::vec2>& verticesTexture, std::vector<glm::vec3>& normals) {
+AUX_RGBImageRec* head_img;
+GLuint head_tex;
+
+void LoadAUXTextures() {
+	head_img = auxDIBImageLoad("sources\\african_head_diffuse.bmp");
+	glGenTextures(1, &head_tex);
+	glBindTexture(GL_TEXTURE_2D, head_tex);
+	glTexImage2D(GL_TEXTURE_2D, 0, 3,
+		head_img->sizeX,
+		head_img->sizeY,
+		0,
+		GL_RGB,
+		GL_UNSIGNED_BYTE,
+		head_img->data);
+}
+
+bool loadModel(const char* path, 
+	std::vector<GLfloat>& vertices) {
 	FILE* file = fopen(path, "r");
 	if (file == NULL) {
 		printf("Impossible to open the file !\n");
@@ -84,51 +108,61 @@ bool loadModel(const char* path, std::vector<glm::vec3>& vertices, std::vector<g
 			switch (matches)
 			{
 			case 9: 
-				vertIndices.push_back(_verticesInd[0]);
-				vertIndices.push_back(_verticesInd[1]);
-				vertIndices.push_back(_verticesInd[2]);
+				vertIndices.push_back(_verticesInd[0] - 1);
+				vertIndices.push_back(_verticesInd[1] - 1);
+				vertIndices.push_back(_verticesInd[2] - 1);
 
-				textIndices.push_back(_texturesInd[0]);
-				textIndices.push_back(_texturesInd[1]);
-				textIndices.push_back(_texturesInd[2]);
+				textIndices.push_back(_texturesInd[0] - 1);
+				textIndices.push_back(_texturesInd[1] - 1);
+				textIndices.push_back(_texturesInd[2] - 1);
 
-				normalsIndices.push_back(_normalsInd[0]);
-				normalsIndices.push_back(_normalsInd[1]);
-				normalsIndices.push_back(_normalsInd[2]);
+				normalsIndices.push_back(_normalsInd[0] - 1);
+				normalsIndices.push_back(_normalsInd[1] - 1);
+				normalsIndices.push_back(_normalsInd[2] - 1);
 				break;
 			case 6:
-				vertIndices.push_back(_verticesInd[0]);
-				vertIndices.push_back(_verticesInd[1]);
-				vertIndices.push_back(_verticesInd[2]);
+				vertIndices.push_back(_verticesInd[0] - 1);
+				vertIndices.push_back(_verticesInd[1] - 1);
+				vertIndices.push_back(_verticesInd[2] - 1);
 
-				textIndices.push_back(_texturesInd[0]);
-				textIndices.push_back(_texturesInd[1]);
-				textIndices.push_back(_texturesInd[2]);
+				textIndices.push_back(_texturesInd[0] - 1);
+				textIndices.push_back(_texturesInd[1] - 1);
+				textIndices.push_back(_texturesInd[2] - 1);
 				break;
 			case 3:
-				vertIndices.push_back(_verticesInd[0]);
-				vertIndices.push_back(_verticesInd[1]);
-				vertIndices.push_back(_verticesInd[2]);
+				vertIndices.push_back(_verticesInd[0] - 1);
+				vertIndices.push_back(_verticesInd[1] - 1);
+				vertIndices.push_back(_verticesInd[2] - 1);
 			default:
 				break;
 			}
 		}
 	}
 
+	std::vector<GLfloat> result = std::vector<GLfloat>();
 	for (int i = 0; i < vertIndices.size(); i++) {
-		GLuint index = vertIndices[i];
-		vertices.push_back(temp_vert[index - 1]);
+		int vertInd = vertIndices[i];
+		vertInd = abs(vertInd);
+		result.push_back(temp_vert[vertInd].x);
+		result.push_back(temp_vert[vertInd].y);
+		result.push_back(temp_vert[vertInd].z);
+		if (textIndices.size() == vertIndices.size()) {
+			int textInd = textIndices[i];
+			textInd = abs(textInd);
+			result.push_back(temp_text[textInd].x);
+			result.push_back(temp_text[textInd].y);
+
+			if (normalsIndices.size() == vertIndices.size()) {
+				int normalInd = normalsIndices[i];
+				normalInd = abs(normalInd);
+				result.push_back(temp_normals[normalInd].x);
+				result.push_back(temp_normals[normalInd].y);
+				result.push_back(temp_normals[normalInd].z);
+			}
+		}
 	}
 
-	for (int i = 0; i < textIndices.size(); i++) {
-		GLuint index = textIndices[i];
-		verticesTexture.push_back(temp_text[index - 1]);
-	}
-
-	for (int i = 0; i < normalsIndices.size(); i++) {
-		GLuint index = normalsIndices[i];
-		normals.push_back(temp_normals[index - 1]);
-	}
+	vertices = result;
 }
 
 void resizeWindow(int width, int height) {
@@ -146,15 +180,24 @@ void checkOpenGLerror() {
 }
 
 void setupBuffers() {
-	std::vector<glm::vec3> vertices;
-	std::vector<glm::vec2> textCoords;
-	std::vector<glm::vec3> normals;
-	bool res = loadModel("african_head.obj", vertices, textCoords, normals);
+	std::vector<GLfloat> vertices;
+	bool res = loadModel("sources\\maya.obj", vertices);
 	Model_vertices_count = vertices.size();
+
+	glGenVertexArrays(1, &VAO);
+	glBindVertexArray(VAO);
 
 	glGenBuffers(1, &VBO);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), &vertices[0], GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), &vertices[0], GL_STATIC_DRAW);
+
+	std::vector<GLuint> ebo_data = std::vector<GLuint>();
+	for (int i = 0; i < Model_vertices_count; i++) {
+		ebo_data.push_back(i);
+	}
+	glGenBuffers(1, &EBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, ebo_data.size() * sizeof(GLuint), &ebo_data[0], GL_STATIC_DRAW);
 
 	checkOpenGLerror();
 }
@@ -169,16 +212,28 @@ void initShader() {
 	const char* vsSource =
 		"#version 330\n"
 		"attribute vec3 coord;\n"
-		"uniform mat4 MVP;"
+		"attribute vec2 textureCoord;\n"
+		"attribute vec3 normal;\n"
+		"uniform mat4 MVP;\n"
+		"uniform mat4 matrix;\n"
+		"out vec2 TexCoord;\n"
+		"out vec3 Normal;\n"
 		"void main() {\n"
-		"	gl_Position = MVP * vec4(coord, 1.0);\n"
+		"	gl_Position = vec4(coord, 1.0) * matrix;\n"
+		"	TexCoord = textureCoord;\n"
+		"	Normal = normal;\n"
 		"}\n";
 
 	const char* fsSource =
 		"#version 330\n"
-		"uniform vec4 color;\n"
+		"out vec4 FragColor;\n"
+		"out vec3 Norm;\n"
+		"in vec2 TexCoord;\n"
+		"in vec3 Normal;\n"
+		"uniform sampler2D texture1;\n"
 		"void main() {\n"
-		"	gl_FragColor = color;\n"
+		"	FragColor = texture(texture1, TexCoord);\n"
+		"	Norm = Normal;\n"
 		"}\n";
 
 	GLuint fShader;
@@ -216,19 +271,33 @@ void initShader() {
 		return;
 	}
 
-	const char* unif_name = "color";
-	Unif_color = glGetUniformLocation(Program, unif_name);
-	if (Unif_color == -1) {
-		std::cout << "could not bind uniform " << unif_name << std::endl;
+	const char* attr_name2 = "textureCoord";
+	Attrib_texture = glGetAttribLocation(Program, attr_name2);
+	if (Attrib_texture == -1) {
+		std::cout << "could not bind uniform " << attr_name2 << std::endl;
+		return;
+	}
+
+	const char* attr_name3 = "normal";
+	Attrib_normal = glGetAttribLocation(Program, attr_name3);
+	if (Attrib_normal == -1) {
+		std::cout << "could not bind uniform " << attr_name3 << std::endl;
+		return;
+	}
+
+	const char* unif_name_t = "texture1";
+	Unif_texture = glGetUniformLocation(Program, unif_name_t);
+	if (Unif_texture == -1) {
+		std::cout << "could not bind uniform " << unif_name_t << std::endl;
 		return;
 	};
 
-	/*const char* unif_name2 = "matrix";
+	const char* unif_name2 = "matrix";
 	Unif_matr = glGetUniformLocation(Program, unif_name2);
 	if (Unif_matr == -1) {
 		std::cout << "could not bind uniform " << unif_name2 << std::endl;
 		return;
-	};*/
+	};
 
 	const char* unif_name3 = "MVP";
 	Unif_MVP = glGetUniformLocation(Program, unif_name3);
@@ -248,6 +317,7 @@ void freeShader() {
 void render2() {
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glEnable(GL_DEPTH_TEST);
 
 	glLoadIdentity();
 
@@ -260,7 +330,7 @@ void render2() {
 
 	glm::mat4 Projection = glm::perspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 200.0f);
 	glm::mat4 View = glm::lookAt(
-		glm::vec3(4, 3, 3),
+		glm::vec3(4, 0, 7),
 		glm::vec3(0, 0, 0),
 		glm::vec3(0, 1, 0)
 	);
@@ -268,23 +338,62 @@ void render2() {
 	glm::mat4 MVP = Projection * View * Model;
 	glUniformMatrix4fv(Unif_MVP, 1, GL_FALSE, &MVP[0][0]);
 
+	float a = angle * 3.14f / 180.0f;
 
-	glEnableVertexAttribArray(Attrib_vertex);
-	// ! Подключаем VBO
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glVertexAttribPointer(Attrib_vertex, 3, GL_FLOAT, GL_FALSE, 0, 0);
-	// ! Отключаем VBO
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glm::mat4 rotateY = { glm::cos(a),0.0f, glm::sin(a), 0.0f,
+								0.0f, 1.0f, 0.0f, 0.0f,
+								-glm::sin(a), 0.0f, glm::cos(a), 0.0f,
+								0.0f, 0.0f, 0.0f, 1.0f };
+
+	glUniformMatrix4fv(Unif_matr, 1, GL_FALSE, &rotateY[0][0]);
+	
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)0);
+	glEnableVertexAttribArray(0);
+	
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
+	glEnableVertexAttribArray(1);
+
+	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)(5 * sizeof(GLfloat)));
+	glEnableVertexAttribArray(2);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, head_tex);
+	glUniform1i(Unif_texture, 0);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	glRotatef(angle, 0.0f, 1.0f, 0.0f);
 	// ! Передаем данные на видеокарту (рисуем)
-	glDrawArrays(GL_TRIANGLES, 0, Model_vertices_count * sizeof(glm::vec3));
+	glDrawElements(GL_TRIANGLES, Model_vertices_count, GL_UNSIGNED_INT, 0);
 	// ! Отключаем массив атрибутов
-	glDisableVertexAttribArray(Attrib_vertex);
+	//glDisableVertexAttribArray(Attrib_vertex);
+	//glDisableVertexAttribArray(Attrib_texture);
 
 	glUseProgram(0);
 
 	glFlush();
 	checkOpenGLerror();
 	glutSwapBuffers();
+}
+
+void keyboardDown(unsigned char key, int x, int y) {
+	switch (key)
+	{
+	case 'a':
+		angle += 0.5;
+		angle += 0.5;
+		break;
+	case 'd':
+		angle -= 0.5;
+		angle -= 0.5;
+		break;
+	default:
+		break;
+	}
+	glutPostRedisplay();
 }
 
 int main(int argc, char* argv[]) {
@@ -311,8 +420,11 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
+	LoadAUXTextures();
 	setupBuffers();
 	initShader();
+
+	glutKeyboardFunc(keyboardDown);
 
 	glutReshapeFunc(resizeWindow);
 	glutDisplayFunc(render2);
