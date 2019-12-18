@@ -1,5 +1,6 @@
 #pragma once
 
+
 const char* vsSourceLightingPhong =
 	"#version 330\n"
 	"layout (location = 0) in vec3 position;\n"
@@ -25,20 +26,23 @@ const char* vsSourceLightingPhong =
 	"	vec3 viewDir;\n"
 	"	float distance;\n"
 	"} Vert;\n"
+	"out vec2 TexCoord;\n"
 	"void main() {\n"
-	"	vec4 vertex   = transform.model * vec4(position, 1.0);\n"
+	"	vec4 vertex   = vec4(position, 1.0);\n"
 	"	vec4 lightDir = light.position - vertex;\n"
 	"	Vert.texcoord = textureCoord;\n"
-	"	Vert.normal   = transform.normal * normal;\n"
+	"	Vert.normal   = normal;\n"
 	"	Vert.lightDir = vec3(lightDir);\n"
 	"	Vert.viewDir  = transform.viewPosition - vec3(vertex);\n"
 	"	Vert.distance = length(lightDir);\n"
-	"	gl_Position = transform.viewProjection * vertex;\n"
+	"	gl_Position = vec4(position, 1.0);\n"
+	"	TexCoord = textureCoord;\n"
 	"}\n";
 
 const char* fsSourceLightingPhong =
 	"#version 330\n"
 	"out vec4 FragColor;\n"
+	"in vec2 TexCoord;\n"
 	"in Vertex {\n"
 	"	vec2  texcoord;\n"
 	"	vec3  normal;\n"
@@ -73,4 +77,5 @@ const char* fsSourceLightingPhong =
 	"	float RdotVpow = max(pow(dot(reflect(-lightDir, normal), viewDir), material.shininess), 0.0);\n"
 	"	FragColor += material.specular * light.specular * RdotVpow * attenuation;\n"
 	"	FragColor *= texture(texture1, Vert.texcoord);\n"
+	"	FragColor = texture(texture1, TexCoord);\n"
 	"}\n";

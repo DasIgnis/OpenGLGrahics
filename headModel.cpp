@@ -69,7 +69,7 @@ struct Material {
 };
 
 void LoadAUXTextures() {
-	head_img = auxDIBImageLoad("sources\\bravit.bmp");
+	head_img = auxDIBImageLoad("sources\\african_head_diffuse.bmp");
 	glGenTextures(1, &head_tex);
 	glBindTexture(GL_TEXTURE_2D, head_tex);
 	glTexImage2D(GL_TEXTURE_2D, 0, 3,
@@ -243,15 +243,40 @@ void freeVBO()
 
 void initShader() {
 
+	const char* vsSource =
+		"#version 330\n"
+		"attribute vec3 coord;\n"
+		"attribute vec2 textureCoord;\n"
+		"attribute vec3 normal;\n"
+		"out vec2 TexCoord;\n"
+		"out vec3 Normal;\n"
+		"void main() {\n"
+		"	gl_Position = vec4(coord, 1.0);\n"
+		"	TexCoord = textureCoord;\n"
+		"	Normal = normal;\n"
+		"}\n";
+
+	const char* fsSource =
+		"#version 330\n"
+		"out vec4 FragColor;\n"
+		"out vec3 Norm;\n"
+		"in vec2 TexCoord;\n"
+		"in vec3 Normal;\n"
+		"uniform sampler2D texture1;\n"
+		"void main() {\n"
+		"	FragColor = texture(texture1, TexCoord);\n"
+		"	Norm = Normal;\n"
+		"}\n";
+
 	GLuint fShader;
 	GLuint vShader;
 
 	fShader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fShader, 1, &fsSourceLightingPhong, NULL);
+	glShaderSource(fShader, 1, &fsSource, NULL);
 	glCompileShader(fShader);
 
 	vShader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vShader, 1, &vsSourceLightingPhong, NULL);
+	glShaderSource(vShader, 1, &vsSource, NULL);
 	glCompileShader(vShader);
 
 	Program = glCreateProgram();
@@ -271,7 +296,7 @@ void initShader() {
 		return;
 	}
 
-	const char* attr_name = "position";
+	const char* attr_name = "coord";
 	Attrib_vertex = glGetAttribLocation(Program, attr_name);
 	if (Attrib_vertex == -1) {
 		std::cout << "could not bind uniform " << attr_name << std::endl;
@@ -292,10 +317,10 @@ void initShader() {
 		return;
 	}
 
-	const char* unif_name_1 = "texture1";
-	Unif_texture = glGetUniformLocation(Program, unif_name_1);
+	const char* unif_name_t = "texture1";
+	Unif_texture = glGetUniformLocation(Program, unif_name_t);
 	if (Unif_texture == -1) {
-		std::cout << "could not bind uniform " << unif_name_1 << std::endl;
+		std::cout << "could not bind uniform " << unif_name_t << std::endl;
 		return;
 	};
 
@@ -354,7 +379,7 @@ void render2() {
 								-glm::sin(a), 0.0f, glm::cos(a), 0.0f,
 								0.0f, 0.0f, 0.0f, 1.0f };
 
-	glUniformMatrix4fv(Unif_matr, 1, GL_FALSE, &rotateY[0][0]);
+	//glUniformMatrix4fv(Unif_matr, 1, GL_FALSE, &rotateY[0][0]);
 	Transform transform = Transform();
 	glm::mat4 projection = glm::perspective(
 		glm::radians(60.0f),
@@ -374,7 +399,7 @@ void render2() {
 	transform.viewPosition = { 1.0f, 0.0f, 0.0f };
 	transform.normal = glm::mat3(1.0f);
 
-	TransformSetup(Program, transform);
+	//TransformSetup(Program, transform);
 
 	PointLight light = PointLight();
 	light.ambient = { 0.5f, 0.5f, 0.5f, 1.0f };
@@ -383,7 +408,7 @@ void render2() {
 	light.attenuation = { 0.1f, 0.0f, 0.0f };
 	light.position = { 7.0f, 0.0f, 0.0f, 0.0f };
 
-	PointLightSetup(Program, light);
+	//PointLightSetup(Program, light);
 
 	Material material = Material();
 	material.ambient = { 0.5f, 0.5f, 0.5f, 1.0f };
@@ -392,7 +417,7 @@ void render2() {
 	material.specular = { 0.1f, 0.1f, 0.1f, 1.0f };
 	material.shininess = 1.0f;
 
-	MaterialSetup(Program, material);
+	//MaterialSetup(Program, material);
 
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)0);
 	glEnableVertexAttribArray(0);
@@ -412,8 +437,7 @@ void render2() {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-	glRotatef(angle, 0.0f, 1.0f, 0.0f);
-	// ! Передаем данные на видеокарту (рисуем)
+
 	glDrawElements(GL_TRIANGLES, Model_vertices_count, GL_UNSIGNED_INT, 0);
 	// ! Отключаем массив атрибутов
 	//glDisableVertexAttribArray(Attrib_vertex);
