@@ -11,6 +11,7 @@
 #include "include/glaux.h"
 #include "include/glm/glm.hpp"
 #include "include/glm/gtc/matrix_transform.hpp"
+#include "shaders.h"
 
 int w, h;
 
@@ -29,6 +30,13 @@ GLint Unif_matr;
 GLint Unif_MVP;
 GLint Unif_texture;
 
+GLint Unif_point_transform;
+GLint Unif_point_light;
+GLint Unif_point_vertex;
+
+GLint Unif_frag_light;
+GLint Unif_frag_material;
+
 GLint Model_vertices_count;
 GLint Model_textures_count;
 
@@ -36,7 +44,7 @@ AUX_RGBImageRec* head_img;
 GLuint head_tex;
 
 void LoadAUXTextures() {
-	head_img = auxDIBImageLoad("sources\\african_head_diffuse.bmp");
+	head_img = auxDIBImageLoad("sources\\bravit.bmp");
 	glGenTextures(1, &head_tex);
 	glBindTexture(GL_TEXTURE_2D, head_tex);
 	glTexImage2D(GL_TEXTURE_2D, 0, 3,
@@ -181,7 +189,7 @@ void checkOpenGLerror() {
 
 void setupBuffers() {
 	std::vector<GLfloat> vertices;
-	bool res = loadModel("sources\\maya.obj", vertices);
+	bool res = loadModel("sources\\african_head.obj", vertices);
 	Model_vertices_count = vertices.size();
 
 	glGenVertexArrays(1, &VAO);
@@ -209,42 +217,16 @@ void freeVBO()
 }
 
 void initShader() {
-	const char* vsSource =
-		"#version 330\n"
-		"attribute vec3 coord;\n"
-		"attribute vec2 textureCoord;\n"
-		"attribute vec3 normal;\n"
-		"uniform mat4 MVP;\n"
-		"uniform mat4 matrix;\n"
-		"out vec2 TexCoord;\n"
-		"out vec3 Normal;\n"
-		"void main() {\n"
-		"	gl_Position = vec4(coord, 1.0) * matrix;\n"
-		"	TexCoord = textureCoord;\n"
-		"	Normal = normal;\n"
-		"}\n";
-
-	const char* fsSource =
-		"#version 330\n"
-		"out vec4 FragColor;\n"
-		"out vec3 Norm;\n"
-		"in vec2 TexCoord;\n"
-		"in vec3 Normal;\n"
-		"uniform sampler2D texture1;\n"
-		"void main() {\n"
-		"	FragColor = texture(texture1, TexCoord);\n"
-		"	Norm = Normal;\n"
-		"}\n";
 
 	GLuint fShader;
 	GLuint vShader;
 
 	fShader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fShader, 1, &fsSource, NULL);
+	glShaderSource(fShader, 1, &fsSourceLightingPhong, NULL);
 	glCompileShader(fShader);
 
 	vShader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vShader, 1, &vsSource, NULL);
+	glShaderSource(vShader, 1, &vsSourceLightingPhong, NULL);
 	glCompileShader(vShader);
 
 	Program = glCreateProgram();
@@ -264,7 +246,7 @@ void initShader() {
 		return;
 	}
 
-	const char* attr_name = "coord";
+	const char* attr_name = "position";
 	Attrib_vertex = glGetAttribLocation(Program, attr_name);
 	if (Attrib_vertex == -1) {
 		std::cout << "could not bind uniform " << attr_name << std::endl;
@@ -285,26 +267,14 @@ void initShader() {
 		return;
 	}
 
-	const char* unif_name_t = "texture1";
-	Unif_texture = glGetUniformLocation(Program, unif_name_t);
+	const char* unif_name_1 = "texture1";
+	Unif_texture = glGetUniformLocation(Program, unif_name_1);
 	if (Unif_texture == -1) {
-		std::cout << "could not bind uniform " << unif_name_t << std::endl;
+		std::cout << "could not bind uniform " << unif_name_1 << std::endl;
 		return;
 	};
 
-	const char* unif_name2 = "matrix";
-	Unif_matr = glGetUniformLocation(Program, unif_name2);
-	if (Unif_matr == -1) {
-		std::cout << "could not bind uniform " << unif_name2 << std::endl;
-		return;
-	};
-
-	const char* unif_name3 = "MVP";
-	Unif_MVP = glGetUniformLocation(Program, unif_name3);
-	if (Unif_MVP == -1) {
-		std::cout << "could not bind uniform " << unif_name3 << std::endl;
-		return;
-	};
+	
 
 	checkOpenGLerror();
 }
@@ -398,7 +368,7 @@ void keyboardDown(unsigned char key, int x, int y) {
 
 int main(int argc, char* argv[]) {
 
-	//setlocale(LC_ALL, "RUSSIAN");
+	setlocale(LC_ALL, "RUSSIAN");
 
 	glutInit(&argc, argv);
 	glutInitWindowPosition(100, 100);

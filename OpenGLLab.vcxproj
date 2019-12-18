@@ -134,6 +134,9 @@
   <ItemGroup>
     <ClCompile Include="headModel.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="shaders.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="packages\freeglut.redist.2.8.1.15\build\native\freeglut.redist.targets" Condition="Exists('packages\freeglut.redist.2.8.1.15\build\native\freeglut.redist.targets')" />
