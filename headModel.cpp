@@ -27,7 +27,7 @@ GLint Attrib_texture;
 GLint Attrib_normal;
 GLint Unif_color;
 GLint Unif_matr;
-GLint Unif_MVP;
+GLint Unif_Model;
 GLint Unif_texture;
 
 GLint Unif_point_transform;
@@ -42,6 +42,31 @@ GLint Model_textures_count;
 
 AUX_RGBImageRec* head_img;
 GLuint head_tex;
+
+struct PointLight
+{
+	glm::vec4  position;
+	glm::vec4  ambient;
+	glm::vec4  diffuse;
+	glm::vec4  specular;
+	glm::vec3  attenuation;
+};
+
+struct Transform
+{
+	glm::mat4 model;
+	glm::mat4 viewProjection;
+	glm::mat3 normal;
+	glm::vec3 viewPosition;
+};
+
+struct Material {
+	glm::vec4 ambient;
+	glm::vec4 diffuse;
+	glm::vec4 specular;
+	glm::vec4 emission;
+	float shininess;
+};
 
 void LoadAUXTextures() {
 	head_img = auxDIBImageLoad("sources\\bravit.bmp");
@@ -274,9 +299,33 @@ void initShader() {
 		return;
 	};
 
-	
-
 	checkOpenGLerror();
+}
+
+void PointLightSetup(GLuint program, const PointLight& light)
+{
+	glUniform4fv(glGetUniformLocation(program, "light.position"), 1, &light.position[0]);
+	glUniform4fv(glGetUniformLocation(program, "light.ambient"), 1, &light.ambient[0]);
+	glUniform4fv(glGetUniformLocation(program, "light.diffuse"), 1, &light.diffuse[0]);
+	glUniform4fv(glGetUniformLocation(program, "light.specular"), 1, &light.specular[0]);
+	glUniform3fv(glGetUniformLocation(program, "light.attenuation"), 1, &light.attenuation[0]);
+}
+
+void TransformSetup(GLuint program, const Transform& transform)
+{
+	glUniformMatrix4fv(glGetUniformLocation(program, "transform.model"), 1, GL_FALSE, &transform.model[0][0]);
+	glUniformMatrix4fv(glGetUniformLocation(program, "transform.viewProjection"), 1, GL_FALSE, &transform.viewProjection[0][0]);
+	glUniformMatrix3fv(glGetUniformLocation(program, "transform.normal"), 1, GL_FALSE, &transform.normal[0][0]);
+	glUniform3fv(glGetUniformLocation(program, "transform.viewPosition"), 1, &transform.viewPosition[0]);
+}
+
+void MaterialSetup(GLuint program, const Material& material)
+{
+	glUniform4fv(glGetUniformLocation(program, "material.ambient"), 1, &material.ambient[0]);
+	glUniform4fv(glGetUniformLocation(program, "material.diffuse"), 1, &material.diffuse[0]);
+	glUniform4fv(glGetUniformLocation(program, "material.specular"), 1, &material.specular[0]);
+	glUniform4fv(glGetUniformLocation(program, "material.emission"), 1, &material.emission[0]);
+	glUniform1f(glGetUniformLocation(program, "material.shiness"), material.shininess);
 }
 
 void freeShader() {
@@ -296,17 +345,7 @@ void render2() {
 	glUseProgram(Program);
 	static float red[4] = { 1.0f, 0.0f, 0.0f, 1.0f };
 	// ! Передаем юниформ в шейдер
-	glUniform4fv(Unif_color, 1, red);
-
-	glm::mat4 Projection = glm::perspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 200.0f);
-	glm::mat4 View = glm::lookAt(
-		glm::vec3(4, 0, 7),
-		glm::vec3(0, 0, 0),
-		glm::vec3(0, 1, 0)
-	);
-	glm::mat4 Model = glm::mat4(1.0f);
-	glm::mat4 MVP = Projection * View * Model;
-	glUniformMatrix4fv(Unif_MVP, 1, GL_FALSE, &MVP[0][0]);
+	//glUniform4fv(Unif_color, 1, red);
 
 	float a = angle * 3.14f / 180.0f;
 
@@ -316,7 +355,45 @@ void render2() {
 								0.0f, 0.0f, 0.0f, 1.0f };
 
 	glUniformMatrix4fv(Unif_matr, 1, GL_FALSE, &rotateY[0][0]);
-	
+	Transform transform = Transform();
+	glm::mat4 projection = glm::perspective(
+		glm::radians(60.0f),
+		4.0f / 3.0f,
+		0.1f,
+		100.0f
+	);
+	glm::mat4 view = glm::lookAt(
+		glm::vec3(1, 0, 0),
+		glm::vec3(0, 0, 0),
+		glm::vec3(0, 1, 0)
+	);
+	glm::mat4 viewProj = projection * view;
+
+	transform.viewProjection = glm::mat4(1.0f);
+	transform.model = rotateY;
+	transform.viewPosition = { 1.0f, 0.0f, 0.0f };
+	transform.normal = glm::mat3(1.0f);
+
+	TransformSetup(Program, transform);
+
+	PointLight light = PointLight();
+	light.ambient = { 0.5f, 0.5f, 0.5f, 1.0f };
+	light.diffuse = { 0.1f, 0.1f, 0.1f, 1.0f };
+	light.specular = { 0.0f, 0.0f, 0.0f, 1.0f };
+	light.attenuation = { 0.1f, 0.0f, 0.0f };
+	light.position = { 7.0f, 0.0f, 0.0f, 0.0f };
+
+	PointLightSetup(Program, light);
+
+	Material material = Material();
+	material.ambient = { 0.5f, 0.5f, 0.5f, 1.0f };
+	material.diffuse = { 0.1f, 0.1f, 0.1f, 1.0f };
+	material.emission = { 0.0f, 0.0f, 0.0f, 0.0f };
+	material.specular = { 0.1f, 0.1f, 0.1f, 1.0f };
+	material.shininess = 1.0f;
+
+	MaterialSetup(Program, material);
+
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)0);
 	glEnableVertexAttribArray(0);
 	
