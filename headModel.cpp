@@ -177,9 +177,9 @@ bool loadModel(const char* path,
 	vertices = result;
 }
 
-bool saveModes(const char* path,
+bool saveModel(const char* path,
 	std::vector<GLfloat> vertices) {
-
+	return true;
 }
 
 void resizeWindow(int width, int height) {
@@ -244,7 +244,7 @@ void initBuffers() {
 	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), &vertices[0], GL_STATIC_DRAW);
 
 	std::vector<GLuint> ebo_data = {
-		1
+		1, 2, 3
 	};
 	glGenBuffers(1, &EBO);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
@@ -316,13 +316,6 @@ void initShader() {
 		return;
 	}
 
-	const char* attr_name2 = "textureCoord";
-	Attrib_texture = glGetAttribLocation(Program, attr_name2);
-	if (Attrib_texture == -1) {
-		std::cout << "could not bind uniform " << attr_name2 << std::endl;
-		return;
-	}
-
 	const char* attr_name3 = "normal";
 	Attrib_normal = glGetAttribLocation(Program, attr_name3);
 	if (Attrib_normal == -1) {
@@ -332,6 +325,7 @@ void initShader() {
 
 	checkOpenGLerror();
 }
+
 
 void freeShader() {
 	glUseProgram(0);
@@ -344,8 +338,6 @@ void render2() {
 	glEnable(GL_DEPTH_TEST);
 
 	glLoadIdentity();
-
-	//gluLookAt(5, 5, 5, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 
 	glUseProgram(Program);
 
