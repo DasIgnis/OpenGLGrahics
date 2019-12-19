@@ -6,8 +6,8 @@
 #include <stdlib.h>
 #include <iostream>
 #include <vector>
-#include "GL/glew.h"
-#include "GL/freeglut.h"
+#include "packages/nupengl.core.0.1.0.1/build/native/include/GL/glew.h"
+#include "packages/freeglut.2.8.1.15/build/native/include/GL/freeglut.h"
 #include "include/glaux.h"
 #include "include/glm/glm.hpp"
 #include "include/glm/gtc/matrix_transform.hpp"
