@@ -72,18 +72,7 @@ struct Material {
 	float shininess;
 };
 
-void LoadAUXTextures() {
-	head_img = auxDIBImageLoad("sources\\bravit.bmp");
-	glGenTextures(1, &head_tex);
-	glBindTexture(GL_TEXTURE_2D, head_tex);
-	glTexImage2D(GL_TEXTURE_2D, 0, 3,
-		head_img->sizeX,
-		head_img->sizeY,
-		0,
-		GL_RGB,
-		GL_UNSIGNED_BYTE,
-		head_img->data);
-}
+
 
 bool loadModel(const char* path, 
 	std::vector<GLfloat>& vertices) {
@@ -239,13 +228,25 @@ void setupBuffers() {
 	checkOpenGLerror();
 }
 
-void freeVBO()
-{
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glDeleteBuffers(1, &VBO);
-}
-
 void initShader() {
+
+	const char* vsSource =
+		"#version 330\n"
+		"attribute vec3 coord;\n"
+		"attribute vec2 textureCoord;\n"
+		"attribute vec3 normal;\n"
+		"out vec4 color;\n"
+		"void main() {\n"
+		" gl_Position = vec4(coord, 1.0);\n"
+		" color = vec4(normal, 1.0);\n"
+		"}\n";
+
+	const char* fsSource =
+		"#version 330\n"
+		"in vec4 color;\n"
+		"void main() {\n"
+		" gl_FragColor = color;\n"
+		"}\n";
 
 	GLuint fShader;
 	GLuint vShader;
@@ -340,31 +341,61 @@ void initShader() {
 	checkOpenGLerror();
 }
 
-void PointLightSetup(GLuint program, const PointLight& light)
-{
-	glUniform4fv(glGetUniformLocation(program, "light.position"), 1, &light.position[0]);
-	glUniform4fv(glGetUniformLocation(program, "light.ambient"), 1, &light.ambient[0]);
-	glUniform4fv(glGetUniformLocation(program, "light.diffuse"), 1, &light.diffuse[0]);
-	glUniform4fv(glGetUniformLocation(program, "light.specular"), 1, &light.specular[0]);
-	glUniform3fv(glGetUniformLocation(program, "light.attenuation"), 1, &light.attenuation[0]);
+void initBuffers() {
+	std::vector<GLfloat> vertices = {0.0,0.0,0.0, 0,0, 0.2f,0.3f,0.6f,
+									0.0,0.0,0.5, 0,0, 0.3f,0.4f,0.5f,
+									0.0,0.5,0.1, 0,0, 0.8f,0.5f,0.3f,
+									0.0,-0.5,0.1, 0,0, 0.4f,0.7f,0.9f,
+									0.0,0.0,0.1, 0,0, 0.7f,0.6f,0.2f,
+									0.0,0.0,0.15, 0,0, 0.76f,0.62f,0.42f,
+									0.0,0.0,0.2, 0,0, 0.67f,0.26f,0.92f,
+									0.0,0.0,0.25, 0,0, 0.19f,0.44f,0.28f,
+									0.0,0.0,0.3, 0,0, 0.54f,0.14f,0.52f,
+									0.0,0.0,0.35, 0,0, 0.7f,0.2f,0.9f,
+									0.0,0.0,0.4, 0,0, 0.51f,0.51f,0.23f,
+									0.0,0.0,0.45, 0,0, 0.63f,0.32f,0.12f,
+									};
+	const char* vsSource =
+		"#version 330\n"
+		"attribute vec3 coord;\n"
+		"attribute vec2 textureCoord;\n"
+		"attribute vec3 normal;\n"
+		"out vec4 color;\n"
+		"void main() {\n"
+		" gl_Position = vec4(coord, 1.0);\n"
+		" color = vec4(normal, 1.0);\n"
+		"}\n";
+
+	const char* fsSource =
+		"#version 330\n"
+		"in vec4 color;\n"
+		"void main() {\n"
+		" gl_FragColor = color;\n"
+		"}\n";
+
+	bool res = loadModel("sources\\african_head.obj", vertices);
+	Model_vertices_count = vertices.size();
+
+	glGenVertexArrays(1, &VAO);
+	glBindVertexArray(VAO);
+
+	glGenBuffers(1, &VBO);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), &vertices[0], GL_STATIC_DRAW);
+
+	std::vector<GLuint> ebo_data = std::vector<GLuint>();
+	for (int i = 0; i < Model_vertices_count; i++) {
+		ebo_data.push_back(i);
+	}
+	glGenBuffers(1, &EBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, ebo_data.size() * sizeof(GLuint), &ebo_data[0], GL_STATIC_DRAW);
+
+	checkOpenGLerror();
 }
 
-void TransformSetup(GLuint program, const Transform& transform)
-{
-	glUniformMatrix4fv(glGetUniformLocation(program, "transform.model"), 1, GL_FALSE, &transform.model[0][0]);
-	glUniformMatrix4fv(glGetUniformLocation(program, "transform.viewProjection"), 1, GL_FALSE, &transform.viewProjection[0][0]);
-	glUniformMatrix3fv(glGetUniformLocation(program, "transform.normal"), 1, GL_FALSE, &transform.normal[0][0]);
-	glUniform3fv(glGetUniformLocation(program, "transform.viewPosition"), 1, &transform.viewPosition[0]);
-}
 
-void MaterialSetup(GLuint program, const Material& material)
-{
-	glUniform4fv(glGetUniformLocation(program, "material.ambient"), 1, &material.ambient[0]);
-	glUniform4fv(glGetUniformLocation(program, "material.diffuse"), 1, &material.diffuse[0]);
-	glUniform4fv(glGetUniformLocation(program, "material.specular"), 1, &material.specular[0]);
-	glUniform4fv(glGetUniformLocation(program, "material.emission"), 1, &material.emission[0]);
-	glUniform1f(glGetUniformLocation(program, "material.shiness"), material.shininess);
-}
+
 
 void freeShader() {
 	glUseProgram(0);
@@ -463,49 +494,6 @@ void render2() {
 	glFlush();
 	checkOpenGLerror();
 	glutSwapBuffers();
-}
-
-void keySpecialFunc(int key, int x, int y) {
-	switch (key)
-	{
-	case GLUT_KEY_F1:
-		MODE = 0;
-		break;
-	case GLUT_KEY_F2:
-		MODE = 1;
-		break;
-	case GLUT_KEY_F3:
-		MODE = 2;
-		break;
-	case GLUT_KEY_F4:
-		MODE = 3;
-		break;
-	default:
-		break;
-	}
-	initShader();
-	glutPostRedisplay();
-}
-
-void keyboardDown(unsigned char key, int x, int y) {
-	switch (key)
-	{
-	case 'a':
-		angle += 1.0;
-		break;
-	case 'd':
-		angle -= 1.0;
-		break;
-	case 'q':
-		angle_light += 1.0;
-		break;
-	case 'e':
-		angle_light -= 1.0;
-		break;
-	default:
-		break;
-	}
-	glutPostRedisplay();
 }
 
 int main(int argc, char* argv[]) {
