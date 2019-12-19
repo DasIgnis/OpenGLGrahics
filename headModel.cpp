@@ -47,31 +47,6 @@ GLint Model_textures_count;
 AUX_RGBImageRec* head_img;
 GLuint head_tex;
 
-struct PointLight
-{
-	glm::vec4  position;
-	glm::vec4  ambient;
-	glm::vec4  diffuse;
-	glm::vec4  specular;
-	glm::vec3  attenuation;
-};
-
-struct Transform
-{
-	glm::mat4 model;
-	glm::mat4 viewProjection;
-	glm::mat3 normal;
-	glm::vec3 viewPosition;
-};
-
-struct Material {
-	glm::vec4 ambient;
-	glm::vec4 diffuse;
-	glm::vec4 specular;
-	glm::vec4 emission;
-	float shininess;
-};
-
 void LoadAUXTextures() {
 	head_img = auxDIBImageLoad("sources\\bravit.bmp");
 	glGenTextures(1, &head_tex);
@@ -85,7 +60,7 @@ void LoadAUXTextures() {
 		head_img->data);
 }
 
-bool loadModel(const char* path, 
+bool loadModel(const char* path,
 	std::vector<GLfloat>& vertices) {
 	FILE* file = fopen(path, "r");
 	if (file == NULL) {
@@ -125,9 +100,9 @@ bool loadModel(const char* path,
 		}
 		else if (strcmp(type, "f") == 0) {
 			GLuint _verticesInd[3], _texturesInd[3], _normalsInd[3];
-			int matches = fscanf(file, "%d/%d/%d %d/%d/%d %d/%d/%d\n", 
+			int matches = fscanf(file, "%d/%d/%d %d/%d/%d %d/%d/%d\n",
 				&_verticesInd[0], &_texturesInd[0], &_normalsInd[0],
-				&_verticesInd[1], &_texturesInd[1], &_normalsInd[1], 
+				&_verticesInd[1], &_texturesInd[1], &_normalsInd[1],
 				&_verticesInd[2], &_texturesInd[2], &_normalsInd[2]);
 			if (matches != 9) {
 				matches = fscanf(file, "%d/%d %d/%d %d/%d\n",
@@ -144,7 +119,7 @@ bool loadModel(const char* path,
 			}
 			switch (matches)
 			{
-			case 9: 
+			case 9:
 				vertIndices.push_back(_verticesInd[0] - 1);
 				vertIndices.push_back(_verticesInd[1] - 1);
 				vertIndices.push_back(_verticesInd[2] - 1);
@@ -202,6 +177,11 @@ bool loadModel(const char* path,
 	vertices = result;
 }
 
+bool saveModes(const char* path,
+	std::vector<GLfloat> vertices) {
+
+}
+
 void resizeWindow(int width, int height) {
 	w = width;
 	h = height;
@@ -239,6 +219,40 @@ void setupBuffers() {
 	checkOpenGLerror();
 }
 
+void initBuffers() {
+	std::vector<GLfloat> vertices = { 0.0, 0.0, 0.0, 0, 0, 0, 0.2f, 0.3f, 0.6f,
+									0.0, 0.0, 0.5, 0, 0, 0, 0.3f, 0.4f, 0.5f,
+									0.0, 0.5, 0.1, 0, 0, 0, 0.8f, 0.5f, 0.3f,
+									0.0, -0.5, 0.1, 0, 0, 0, 0.4f, 0.7f, 0.9f,
+									0.0, 0.0, 0.1, 0, 0, 0, 0.7f, 0.6f, 0.2f,
+									0.0, 0.0, 0.15, 0, 0, 0, 0.76f, 0.62f, 0.42f,
+									0.0, 0.0, 0.2, 0, 0, 0, 0.67f, 0.26f, 0.92f,
+									0.0, 0.0, 0.25, 0, 0, 0, 0.19f, 0.44f, 0.28f,
+									0.0, 0.0, 0.3, 0, 0, 0, 0.54f, 0.14f, 0.52f,
+									0.0, 0.0, 0.35, 0, 0, 0, 0.7f, 0.2f, 0.9f,
+									0.0, 0.0, 0.4, 0, 0, 0, 0.51f, 0.51f, 0.23f,
+									0.0, 0.0, 0.45, 0, 0, 0, 0.63f, 0.32f, 0.12f,
+	};
+
+	Model_vertices_count = vertices.size();
+
+	glGenVertexArrays(1, &VAO);
+	glBindVertexArray(VAO);
+
+	glGenBuffers(1, &VBO);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), &vertices[0], GL_STATIC_DRAW);
+
+	std::vector<GLuint> ebo_data = {
+		1
+	};
+	glGenBuffers(1, &EBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, ebo_data.size() * sizeof(GLuint), &ebo_data[0], GL_STATIC_DRAW);
+
+	checkOpenGLerror();
+}
+
 void freeVBO()
 {
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -247,40 +261,36 @@ void freeVBO()
 
 void initShader() {
 
+	const char* vsSource =
+		"#version 330\n"
+		"attribute vec3 coord;\n"
+		"attribute vec2 textureCoord;\n"
+		"attribute vec3 normal;\n"
+		"out vec4 color;\n"
+		"void main() {\n"
+		" gl_Position = vec4(coord, 1.0);\n"
+		" color = vec4(normal, 1.0);\n"
+		"}\n";
+
+	const char* fsSource =
+		"#version 330\n"
+		"out vec4 FragColor;\n"
+		"in vec4 color;\n"
+		"void main() {\n"
+		" FragColor = color;\n"
+		"}\n";
+
 	GLuint fShader;
 	GLuint vShader;
 
 	fShader = glCreateShader(GL_FRAGMENT_SHADER);
 	vShader = glCreateShader(GL_VERTEX_SHADER);
 
-	if (MODE == 0 || MODE == 1) {
-		if (MODE == 0) {
-			glShaderSource(fShader, 1, &fsSourceLightingPhong, NULL);
-			glCompileShader(fShader);
-		}
+	glShaderSource(fShader, 1, &fsSource, NULL);
+	glCompileShader(fShader);
 
-		if (MODE == 1) {
-			glShaderSource(fShader, 1, &fsSourceLightingPhongColor, NULL);
-			glCompileShader(fShader);
-		}
-
-		glShaderSource(vShader, 1, &vsSourceLightingPhong, NULL);
-		glCompileShader(vShader);
-	}
-	else {
-		if (MODE == 2) {
-			glShaderSource(fShader, 1, &fsSourceLightingPhongInt, NULL);
-			glCompileShader(fShader);
-		}
-
-		if (MODE == 3) {
-			glShaderSource(fShader, 1, &fsSourceLightingPhongIntColor, NULL);
-			glCompileShader(fShader);
-		}
-
-		glShaderSource(vShader, 1, &vsSourceLightingPhongInt, NULL);
-		glCompileShader(vShader);
-	}
+	glShaderSource(vShader, 1, &vsSource, NULL);
+	glCompileShader(vShader);
 
 	Program = glCreateProgram();
 	glAttachShader(Program, vShader);
@@ -299,7 +309,7 @@ void initShader() {
 		return;
 	}
 
-	const char* attr_name = "position";
+	const char* attr_name = "coord";
 	Attrib_vertex = glGetAttribLocation(Program, attr_name);
 	if (Attrib_vertex == -1) {
 		std::cout << "could not bind uniform " << attr_name << std::endl;
@@ -320,50 +330,7 @@ void initShader() {
 		return;
 	}
 
-	if (MODE == 0 || MODE == 2) {
-		const char* unif_name_t = "texture1";
-		Unif_texture = glGetUniformLocation(Program, unif_name_t);
-		if (Unif_texture == -1) {
-			std::cout << "could not bind uniform " << unif_name_t << std::endl;
-			return;
-		};
-	}
-
-	if (MODE == 1 || MODE == 3) {
-		const char* unif_name_color = "color";
-		Unif_color = glGetUniformLocation(Program, unif_name_color);
-		if (Unif_color == -1) {
-			std::cout << "could not bind uniform" << unif_name_color << std::endl;
-		}
-	}
-
 	checkOpenGLerror();
-}
-
-void PointLightSetup(GLuint program, const PointLight& light)
-{
-	glUniform4fv(glGetUniformLocation(program, "light.position"), 1, &light.position[0]);
-	glUniform4fv(glGetUniformLocation(program, "light.ambient"), 1, &light.ambient[0]);
-	glUniform4fv(glGetUniformLocation(program, "light.diffuse"), 1, &light.diffuse[0]);
-	glUniform4fv(glGetUniformLocation(program, "light.specular"), 1, &light.specular[0]);
-	glUniform3fv(glGetUniformLocation(program, "light.attenuation"), 1, &light.attenuation[0]);
-}
-
-void TransformSetup(GLuint program, const Transform& transform)
-{
-	glUniformMatrix4fv(glGetUniformLocation(program, "transform.model"), 1, GL_FALSE, &transform.model[0][0]);
-	glUniformMatrix4fv(glGetUniformLocation(program, "transform.viewProjection"), 1, GL_FALSE, &transform.viewProjection[0][0]);
-	glUniformMatrix3fv(glGetUniformLocation(program, "transform.normal"), 1, GL_FALSE, &transform.normal[0][0]);
-	glUniform3fv(glGetUniformLocation(program, "transform.viewPosition"), 1, &transform.viewPosition[0]);
-}
-
-void MaterialSetup(GLuint program, const Material& material)
-{
-	glUniform4fv(glGetUniformLocation(program, "material.ambient"), 1, &material.ambient[0]);
-	glUniform4fv(glGetUniformLocation(program, "material.diffuse"), 1, &material.diffuse[0]);
-	glUniform4fv(glGetUniformLocation(program, "material.specular"), 1, &material.specular[0]);
-	glUniform4fv(glGetUniformLocation(program, "material.emission"), 1, &material.emission[0]);
-	glUniform1f(glGetUniformLocation(program, "material.shiness"), material.shininess);
 }
 
 void freeShader() {
@@ -381,10 +348,6 @@ void render2() {
 	//gluLookAt(5, 5, 5, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
 
 	glUseProgram(Program);
-	static float red[4] = { 0.1f, 0.3f, 0.8f, 1.0f };
-	// ! Передаем юниформ в шейдер
-	glUniform4fv(Unif_color, 1, red);
-
 
 	float a = angle * 3.14f / 180.0f;
 
@@ -393,7 +356,6 @@ void render2() {
 								-glm::sin(a), 0.0f, glm::cos(a), 0.0f,
 								0.0f, 0.0f, 0.0f, 1.0f };
 
-	Transform transform = Transform();
 	glm::mat4 projection = glm::perspective(
 		glm::radians(60.0f),
 		4.0f / 3.0f,
@@ -407,51 +369,16 @@ void render2() {
 	);
 	glm::mat4 viewProj = projection * view;
 
-	transform.viewProjection = viewProj;
-	transform.model = rotateY;
-	transform.viewPosition = { 5.0f, 0.0f, 0.0f };
-	transform.normal = glm::mat3(rotateY);
-
-	TransformSetup(Program, transform);
-
 	float al = angle_light * 3.14f / 180.0f;
-
-	PointLight light = PointLight();
-	light.ambient = { 0.5f, 0.5f, 0.5f, 1.0f };
-	light.diffuse = { 0.9f, 0.9f, 0.9f, 1.0f };
-	light.specular = { 0.0f, 0.0f, 0.0f, 1.0f };
-	light.attenuation = { 0.7f, 0.1f, 0.0f };
-	light.position = { 7.0f * sin(al), 0.0f, 7.0f * cos(al), 1.0f };
-
-	PointLightSetup(Program, light);
-
-	Material material = Material();
-	material.ambient = { 0.5f, 0.5f, 0.5f, 1.0f };
-	material.diffuse = { 0.8f, 0.8f, 0.8f, 1.0f };
-	material.emission = { 0.0f, 0.0f, 0.0f, 0.0f };
-	material.specular = { 0.1f, 0.1f, 0.1f, 1.0f };
-	material.shininess = 0.0f;
-
-	MaterialSetup(Program, material);
 
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)0);
 	glEnableVertexAttribArray(0);
-	
+
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
 	glEnableVertexAttribArray(1);
 
 	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)(5 * sizeof(GLfloat)));
 	glEnableVertexAttribArray(2);
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, head_tex);
-	glUniform1i(Unif_texture, 0);
-
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
 
 	glDrawElements(GL_TRIANGLES, Model_vertices_count, GL_UNSIGNED_INT, 0);
 	// ! Отключаем массив атрибутов
@@ -496,12 +423,6 @@ void keyboardDown(unsigned char key, int x, int y) {
 	case 'd':
 		angle -= 1.0;
 		break;
-	case 'q':
-		angle_light += 1.0;
-		break;
-	case 'e':
-		angle_light -= 1.0;
-		break;
 	default:
 		break;
 	}
@@ -519,7 +440,7 @@ int main(int argc, char* argv[]) {
 	glutInitDisplayMode(GLUT_DEPTH | GLUT_RGBA | GLUT_ALPHA | GLUT_DOUBLE);
 	glutCreateWindow("OpenGL");
 
-	
+
 
 	GLenum glew_status = glewInit();
 	if (GLEW_OK != glew_status) {
@@ -533,7 +454,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	LoadAUXTextures();
-	setupBuffers();
+	initBuffers();
 	initShader();
 
 	glutKeyboardFunc(keyboardDown);
