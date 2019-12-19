@@ -12,12 +12,13 @@
 #include "include/glm/glm.hpp"
 #include "include/glm/gtc/matrix_transform.hpp"
 #include "shaders.h"
+#include <fstream>
 
 int w, h;
 
 unsigned int MODE = 0;
 
-float angle = 5.0f;
+float angle = 0.0f;
 float angle_light = 0.0f;
 
 GLuint Program;
@@ -34,31 +35,14 @@ GLint Unif_MVP;
 GLint Unif_Model;
 GLint Unif_texture;
 
-GLint Unif_point_transform;
-GLint Unif_point_light;
-GLint Unif_point_vertex;
-
-GLint Unif_frag_light;
-GLint Unif_frag_material;
-
 GLint Model_vertices_count;
 GLint Model_textures_count;
 
-AUX_RGBImageRec* head_img;
-GLuint head_tex;
 
-void LoadAUXTextures() {
-	head_img = auxDIBImageLoad("sources\\bravit.bmp");
-	glGenTextures(1, &head_tex);
-	glBindTexture(GL_TEXTURE_2D, head_tex);
-	glTexImage2D(GL_TEXTURE_2D, 0, 3,
-		head_img->sizeX,
-		head_img->sizeY,
-		0,
-		GL_RGB,
-		GL_UNSIGNED_BYTE,
-		head_img->data);
-}
+std::vector<GLfloat> vertices;
+std::vector<GLuint> ebo_data;
+
+glm::mat4 rotateY;
 
 bool loadModel(const char* path,
 	std::vector<GLfloat>& vertices) {
@@ -178,7 +162,31 @@ bool loadModel(const char* path,
 }
 
 bool saveModel(const char* path,
-	std::vector<GLfloat> vertices) {
+	std::vector<GLfloat> vertices,
+	std::vector<GLuint> ebo_data,
+	glm::mat4 transform) {
+	std::ofstream myfile;
+	myfile.open(path);
+	for (int i = 0; i < vertices.size(); i++) {
+		if (i % 8 == 0) {
+			glm::vec4 coord = { vertices[i], vertices[i + 1], vertices[i + 2], 1.0 };
+			glm::vec4 newCoord = coord * transform;
+			myfile << "v  " << newCoord.x << " " << newCoord.y << " " << newCoord.z << std::endl;
+		}
+		else if (i % 8 == 3) {
+			myfile << "vt " << vertices[i] << " " << vertices[i + 1] << std::endl;
+		}
+		else if (i % 8 == 5) {
+			myfile << "vn " << vertices[i] << " " << vertices[i + 1] << " " << vertices[i + 2] << std::endl;
+		}
+	}
+	for (int i = 0; i < ebo_data.size(); i++) {
+		if (i % 3 == 0) {
+			myfile << "f  " << ebo_data[i]  << "/" << ebo_data[i]  << "/" << ebo_data[i]  << " " <<
+				ebo_data[i + 1] << "/" << ebo_data[i + 1] << "/" << ebo_data[i + 1] << " " <<
+				ebo_data[i + 2] << "/" << ebo_data[i + 2] << "/" << ebo_data[i + 2] << std::endl;
+ 		}
+	}
 	return true;
 }
 
@@ -196,9 +204,8 @@ void checkOpenGLerror() {
 	}
 }
 
-void setupBuffers() {
-	std::vector<GLfloat> vertices;
-	bool res = loadModel("sources\\african_head.obj", vertices);
+void setupBuffers(const char* path) {
+	bool res = loadModel(path, vertices);
 	Model_vertices_count = vertices.size();
 
 	glGenVertexArrays(1, &VAO);
@@ -208,9 +215,9 @@ void setupBuffers() {
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), &vertices[0], GL_STATIC_DRAW);
 
-	std::vector<GLuint> ebo_data = std::vector<GLuint>();
-	for (int i = 0; i < Model_vertices_count; i++) {
-		ebo_data.push_back(i);
+	ebo_data = std::vector<GLuint>();
+	for (int i = 0; i < Model_vertices_count / 8; i++) {
+		ebo_data.push_back(i + 1);
 	}
 	glGenBuffers(1, &EBO);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
@@ -220,21 +227,21 @@ void setupBuffers() {
 }
 
 void initBuffers() {
-	std::vector<GLfloat> vertices = { 0.0, 0.0, 0.0, 0, 0, 0, 0.2f, 0.3f, 0.6f,
-									0.0, 0.0, 0.5, 0, 0, 0, 0.3f, 0.4f, 0.5f,
-									0.0, 0.5, 0.1, 0, 0, 0, 0.8f, 0.5f, 0.3f,
-									0.0, -0.5, 0.1, 0, 0, 0, 0.4f, 0.7f, 0.9f,
-									0.0, 0.0, 0.1, 0, 0, 0, 0.7f, 0.6f, 0.2f,
-									0.0, 0.0, 0.15, 0, 0, 0, 0.76f, 0.62f, 0.42f,
-									0.0, 0.0, 0.2, 0, 0, 0, 0.67f, 0.26f, 0.92f,
-									0.0, 0.0, 0.25, 0, 0, 0, 0.19f, 0.44f, 0.28f,
-									0.0, 0.0, 0.3, 0, 0, 0, 0.54f, 0.14f, 0.52f,
-									0.0, 0.0, 0.35, 0, 0, 0, 0.7f, 0.2f, 0.9f,
-									0.0, 0.0, 0.4, 0, 0, 0, 0.51f, 0.51f, 0.23f,
-									0.0, 0.0, 0.45, 0, 0, 0, 0.63f, 0.32f, 0.12f,
+	vertices = { 0.0, 0.0, 0.0, 0, 0, 1.0f,  0.3f,  0.6f,
+				0.0, 0.0, 0.5,  0, 0, 0.3f,  0.4f,  0.5f,
+				0.0, 0.5, 0.1,  0, 0, 0.8f,  0.5f,  0.3f,
+				0.0, -0.5, 0.1, 0, 0, 0.4f,  0.7f,  0.9f,
+				0.0, 0.0, 0.1,  0, 0, 0.7f,  0.6f,  0.2f,
+				0.0, 0.0, 0.15, 0, 0, 0.76f, 0.62f, 0.42f,
+				0.0, 0.0, 0.2,  0, 0, 0.67f, 0.26f, 0.92f,
+				0.0, 0.0, 0.25, 0, 0, 0.19f, 0.44f, 0.28f,
+				0.0, 0.0, 0.3,  0, 0, 0.54f, 0.14f, 0.52f,
+				0.0, 0.0, 0.35, 0, 0, 0.7f,  0.2f,  0.9f,
+				0.0, 0.0, 0.4,  0, 0, 0.51f, 0.51f, 0.23f,
+				0.0, 0.0, 0.45, 0, 0, 0.63f, 0.32f, 0.12f,
 	};
 
-	Model_vertices_count = vertices.size();
+	Model_vertices_count = vertices.size() / 8;
 
 	glGenVertexArrays(1, &VAO);
 	glBindVertexArray(VAO);
@@ -243,8 +250,8 @@ void initBuffers() {
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), &vertices[0], GL_STATIC_DRAW);
 
-	std::vector<GLuint> ebo_data = {
-		1, 2, 3
+	ebo_data = {
+		0, 1, 2, 1, 2, 3, 2, 3, 4, 3, 4, 5
 	};
 	glGenBuffers(1, &EBO);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
@@ -266,9 +273,10 @@ void initShader() {
 		"attribute vec3 coord;\n"
 		"attribute vec2 textureCoord;\n"
 		"attribute vec3 normal;\n"
+		"uniform mat4 matrix;\n"
 		"out vec4 color;\n"
 		"void main() {\n"
-		" gl_Position = vec4(coord, 1.0);\n"
+		" gl_Position = vec4(coord, 1.0)  * matrix;\n"
 		" color = vec4(normal, 1.0);\n"
 		"}\n";
 
@@ -323,6 +331,12 @@ void initShader() {
 		return;
 	}
 
+	const char* unif_name = "matrix";
+	Unif_matr = glGetUniformLocation(Program, unif_name);
+	if (Attrib_normal == -1) {
+		std::cout << "could not bind uniform " << unif_name << std::endl;
+	}
+
 	checkOpenGLerror();
 }
 
@@ -343,33 +357,20 @@ void render2() {
 
 	float a = angle * 3.14f / 180.0f;
 
-	glm::mat4 rotateY = { glm::cos(a),0.0f, glm::sin(a), 0.0f,
+	rotateY = { glm::cos(a), 0.0f, glm::sin(a), 0.0f,
 								0.0f, 1.0f, 0.0f, 0.0f,
 								-glm::sin(a), 0.0f, glm::cos(a), 0.0f,
 								0.0f, 0.0f, 0.0f, 1.0f };
 
-	glm::mat4 projection = glm::perspective(
-		glm::radians(60.0f),
-		4.0f / 3.0f,
-		0.1f,
-		100.0f
-	);
-	glm::mat4 view = glm::lookAt(
-		glm::vec3(5, 0, 0),
-		glm::vec3(0, 0, 0),
-		glm::vec3(0, 1, 0)
-	);
-	glm::mat4 viewProj = projection * view;
+	glUniformMatrix4fv(Unif_matr, 1, GL_FALSE, &rotateY[0][0]);
 
-	float al = angle_light * 3.14f / 180.0f;
-
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(GLfloat), (GLvoid*)0);
 	glEnableVertexAttribArray(0);
 
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 7 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
 	glEnableVertexAttribArray(1);
 
-	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)(5 * sizeof(GLfloat)));
+	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(GLfloat), (GLvoid*)(5 * sizeof(GLfloat)));
 	glEnableVertexAttribArray(2);
 
 	glDrawElements(GL_TRIANGLES, Model_vertices_count, GL_UNSIGNED_INT, 0);
@@ -387,17 +388,13 @@ void render2() {
 void keySpecialFunc(int key, int x, int y) {
 	switch (key)
 	{
-	case GLUT_KEY_F1:
-		MODE = 0;
+	case GLUT_KEY_F5:
+		saveModel("example.obj", vertices, ebo_data, rotateY);
 		break;
-	case GLUT_KEY_F2:
-		MODE = 1;
-		break;
-	case GLUT_KEY_F3:
-		MODE = 2;
-		break;
-	case GLUT_KEY_F4:
-		MODE = 3;
+	case GLUT_KEY_F9:
+		rotateY = glm::mat4(1.0f);
+		angle = 0.0f;
+		setupBuffers("example.obj");
 		break;
 	default:
 		break;
@@ -445,9 +442,9 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
-	LoadAUXTextures();
 	initBuffers();
 	initShader();
+	saveModel("exampe.obj", vertices, ebo_data, glm::mat4(1.0f));
 
 	glutKeyboardFunc(keyboardDown);
 	glutSpecialFunc(keySpecialFunc);
