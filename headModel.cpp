@@ -285,9 +285,6 @@ void initBuffers() {
 				0.091506350946109871,-0.34150635094610959,-0.25,
 				0.045753175473054936,-0.1707531754730548,0.5
 	};
-
-	Model_vertices_count = vertices.size() / 8;
-
 	glGenVertexArrays(1, &VAO);
 	glBindVertexArray(VAO);
 
@@ -334,6 +331,8 @@ void initBuffers() {
 
 
 	};
+
+	Model_vertices_count = vertices.size();
 	glGenBuffers(1, &EBO);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, ebo_data.size() * sizeof(GLuint), &ebo_data[0], GL_STATIC_DRAW);
