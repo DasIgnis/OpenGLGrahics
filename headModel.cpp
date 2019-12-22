@@ -18,7 +18,8 @@ int w, h;
 
 unsigned int MODE = 0;
 
-float angle = 5.0f;
+float angle_horizontal = 0.0f;
+float angle_vertical = 0.0f;
 float angle_light = 0.0f;
 
 GLuint Program;
@@ -48,7 +49,19 @@ GLint Model_textures_count;
 AUX_RGBImageRec* head_img;
 GLuint head_tex;
 
-std::vector<GLfloat> vertices;
+AUX_RGBImageRec* wood_img;
+GLuint wood_tex;
+
+AUX_RGBImageRec* chair_img;
+GLuint chair_tex;
+
+AUX_RGBImageRec* cup_img;
+GLuint cup_tex;
+
+std::vector<GLfloat> vertices_cup;
+std::vector<GLfloat> vertices_chair;
+std::vector<GLfloat> vertices_table;
+std::vector<GLfloat> vertices_shar;
 std::vector<GLuint> ebo_data;
 glm::mat4 rotateY;
 
@@ -59,6 +72,7 @@ struct PointLight
 	glm::vec4  diffuse;
 	glm::vec4  specular;
 	glm::vec3  attenuation;
+	glm::vec4  lightColor;
 };
 
 struct Transform
@@ -78,7 +92,7 @@ struct Material {
 };
 
 void LoadAUXTextures() {
-	head_img = auxDIBImageLoad("sources\\bravit.bmp");
+	head_img = auxDIBImageLoad("sources\\metal.bmp");
 	glGenTextures(1, &head_tex);
 	glBindTexture(GL_TEXTURE_2D, head_tex);
 	glTexImage2D(GL_TEXTURE_2D, 0, 3,
@@ -88,9 +102,41 @@ void LoadAUXTextures() {
 		GL_RGB,
 		GL_UNSIGNED_BYTE,
 		head_img->data);
-}
 
-bool loadModel(const char* path, 
+	wood_img = auxDIBImageLoad("sources\\wood.bmp");
+	glGenTextures(1, &wood_tex);
+	glBindTexture(GL_TEXTURE_2D, wood_tex);
+	glTexImage2D(GL_TEXTURE_2D, 0, 3,
+		wood_img->sizeX,
+		wood_img->sizeY,
+		0,
+		GL_RGB,
+		GL_UNSIGNED_BYTE,
+		wood_img->data);
+
+	chair_img = auxDIBImageLoad("sources\\chair.bmp");
+	glGenTextures(1, &chair_tex);
+	glBindTexture(GL_TEXTURE_2D, chair_tex);
+	glTexImage2D(GL_TEXTURE_2D, 0, 3,
+		chair_img->sizeX,
+		chair_img->sizeY,
+		0,
+		GL_RGB,
+		GL_UNSIGNED_BYTE,
+		chair_img->data);
+
+	cup_img = auxDIBImageLoad("sources\\cup.bmp");
+	glGenTextures(1, &cup_tex);
+	glBindTexture(GL_TEXTURE_2D, cup_tex);
+	glTexImage2D(GL_TEXTURE_2D, 0, 3,
+		cup_img->sizeX,
+		cup_img->sizeY,
+		0,
+		GL_RGB,
+		GL_UNSIGNED_BYTE,
+		cup_img->data);
+}
+bool loadModel(const char* path,
 	std::vector<GLfloat>& vertices) {
 	FILE* file = fopen(path, "r");
 	if (file == NULL) {
@@ -130,9 +176,9 @@ bool loadModel(const char* path,
 		}
 		else if (strcmp(type, "f") == 0) {
 			GLuint _verticesInd[3], _texturesInd[3], _normalsInd[3];
-			int matches = fscanf(file, "%d/%d/%d %d/%d/%d %d/%d/%d\n", 
+			int matches = fscanf(file, "%d/%d/%d %d/%d/%d %d/%d/%d\n",
 				&_verticesInd[0], &_texturesInd[0], &_normalsInd[0],
-				&_verticesInd[1], &_texturesInd[1], &_normalsInd[1], 
+				&_verticesInd[1], &_texturesInd[1], &_normalsInd[1],
 				&_verticesInd[2], &_texturesInd[2], &_normalsInd[2]);
 			if (matches != 9) {
 				matches = fscanf(file, "%d/%d %d/%d %d/%d\n",
@@ -149,7 +195,7 @@ bool loadModel(const char* path,
 			}
 			switch (matches)
 			{
-			case 9: 
+			case 9:
 				vertIndices.push_back(_verticesInd[0] - 1);
 				vertIndices.push_back(_verticesInd[1] - 1);
 				vertIndices.push_back(_verticesInd[2] - 1);
@@ -207,6 +253,13 @@ bool loadModel(const char* path,
 	vertices = result;
 }
 
+void loadModels() {
+	loadModel("sources\\cup.obj", vertices_cup);
+	loadModel("sources\\chair.obj", vertices_chair);
+	loadModel("sources\\shar.obj", vertices_shar);
+	loadModel("sources\\table.obj", vertices_table);
+}
+
 void resizeWindow(int width, int height) {
 	w = width;
 	h = height;
@@ -221,8 +274,7 @@ void checkOpenGLerror() {
 	}
 }
 
-void setupBuffers(const char* modelPath) {
-	bool res = loadModel(modelPath, vertices);
+void setupBuffers(std::vector<GLfloat> vertices) {
 	Model_vertices_count = vertices.size();
 
 	glGenVertexArrays(1, &VAO);
@@ -257,41 +309,36 @@ void initShader() {
 	fShader = glCreateShader(GL_FRAGMENT_SHADER);
 	vShader = glCreateShader(GL_VERTEX_SHADER);
 
-	if (MODE == 0 || MODE == 1) {
-		if (MODE == 0) {
-			glShaderSource(fShader, 1, &fsSourceLightingPhong, NULL);
-			glCompileShader(fShader);
-		}
-
-		if (MODE == 1) {
-			glShaderSource(fShader, 1, &fsSourceLightingPhongColor, NULL);
-			glCompileShader(fShader);
-		}
+	if (MODE == 0) {
+		glShaderSource(fShader, 1, &fsSourceLightingPhong, NULL);
+		glCompileShader(fShader);
 
 		glShaderSource(vShader, 1, &vsSourceLightingPhong, NULL);
 		glCompileShader(vShader);
 	}
-	else if (MODE == 2 || MODE == 3) {
-		if (MODE == 2) {
-			glShaderSource(fShader, 1, &fsSourceLightingPhongInt, NULL);
-			glCompileShader(fShader);
-		}
 
-		if (MODE == 3) {
-			glShaderSource(fShader, 1, &fsSourceLightingPhongIntColor, NULL);
-			glCompileShader(fShader);
-		}
-
-		glShaderSource(vShader, 1, &vsSourceLightingPhongInt, NULL);
-		glCompileShader(vShader);
-	}
-	else {
-		glShaderSource(fShader, 1, &fsSourceDiffColors, NULL);
+	if (MODE == 1) {
+		glShaderSource(fShader, 1, &fsSourceLightingLambert, NULL);
 		glCompileShader(fShader);
 
-		glShaderSource(vShader, 1, &vsSourceDiffColors, NULL);
+		glShaderSource(vShader, 1, &vsSourceLightingLambert, NULL);
 		glCompileShader(vShader);
+	}
 
+	if (MODE == 2) {
+		glShaderSource(fShader, 1, &fsSourceLightingPhongDirection, NULL);
+		glCompileShader(fShader);
+
+		glShaderSource(vShader, 1, &vsSourceLightingPhongDirection, NULL);
+		glCompileShader(vShader);
+	}
+
+	if (MODE == 3) {
+		glShaderSource(fShader, 1, &fsSourceLightingBlinnPhong, NULL);
+		glCompileShader(fShader);
+
+		glShaderSource(vShader, 1, &vsSourceLightingPhong, NULL);
+		glCompileShader(vShader);
 	}
 
 	Program = glCreateProgram();
@@ -330,22 +377,12 @@ void initShader() {
 		std::cout << "could not bind uniform " << attr_name3 << std::endl;
 	}
 
-	if (MODE == 0 || MODE == 2) {
-		const char* unif_name_t = "texture1";
-		Unif_texture = glGetUniformLocation(Program, unif_name_t);
-		if (Unif_texture == -1) {
-			std::cout << "could not bind uniform " << unif_name_t << std::endl;
-			return;
-		};
-	}
-
-	if (MODE == 1 || MODE == 3 || MODE == 4) {
-		const char* unif_name_color = "color";
-		Unif_color = glGetUniformLocation(Program, unif_name_color);
-		if (Unif_color == -1) {
-			std::cout << "could not bind uniform" << unif_name_color << std::endl;
-		}
-	}
+	const char* unif_name_t = "texture1";
+	Unif_texture = glGetUniformLocation(Program, unif_name_t);
+	if (Unif_texture == -1) {
+		std::cout << "could not bind uniform " << unif_name_t << std::endl;
+		return;
+	};
 
 	checkOpenGLerror();
 }
@@ -357,6 +394,7 @@ void PointLightSetup(GLuint program, const PointLight& light)
 	glUniform4fv(glGetUniformLocation(program, "light.diffuse"), 1, &light.diffuse[0]);
 	glUniform4fv(glGetUniformLocation(program, "light.specular"), 1, &light.specular[0]);
 	glUniform3fv(glGetUniformLocation(program, "light.attenuation"), 1, &light.attenuation[0]);
+	glUniform4fv(glGetUniformLocation(program, "light.lightColor"), 1, &light.lightColor[0]);
 }
 
 void TransformSetup(GLuint program, const Transform& transform)
@@ -381,6 +419,17 @@ void freeShader() {
 	glDeleteProgram(Program);
 }
 
+void prepareTexture(GLuint tex) {
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, tex);
+	glUniform1i(Unif_texture, 0);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+}
+
 void render2() {
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -388,24 +437,13 @@ void render2() {
 
 	glLoadIdentity();
 
-	//gluLookAt(5, 5, 5, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f);
+	setupBuffers(vertices_cup);
 
 	glUseProgram(Program);
-	static float red[4] = { 0.1f, 0.3f, 0.8f, 1.0f };
-	// ! Передаем юниформ в шейдер
-	glUniform4fv(Unif_color, 1, red);
 
-
-	float a = angle * 3.14f / 180.0f;
-
-	rotateY = { glm::cos(a),0.0f, glm::sin(a), 0.0f,
-								0.0f, 1.0f, 0.0f, 0.0f,
-								-glm::sin(a), 0.0f, glm::cos(a), 0.0f,
-								0.0f, 0.0f, 0.0f, 1.0f };
-
-	if (MODE == 4) {
-		glUniformMatrix4fv(glGetUniformLocation(Program, "model"), 1, GL_FALSE, &rotateY[0][0]);
-	}
+	float ah = angle_horizontal * 3.14f / 180.0f;
+	float av = angle_vertical * 3.14f / 180.0f;
+	glm::vec3 cameraPosition = { 8.0f * sin(ah), 5.0f * sin(av), 8.0f * cos(ah) };
 
 	Transform transform = Transform();
 	glm::mat4 projection = glm::perspective(
@@ -415,72 +453,131 @@ void render2() {
 		100.0f
 	);
 	glm::mat4 view = glm::lookAt(
-		glm::vec3(5, 0, 0),
+		cameraPosition,
 		glm::vec3(0, 0, 0),
 		glm::vec3(0, 1, 0)
 	);
 	glm::mat4 viewProj = projection * view;
 
-	if (MODE != 4) {
-		transform.viewProjection = viewProj;
-		transform.model = rotateY;
-		transform.viewPosition = { 5.0f, 0.0f, 0.0f };
-		transform.normal = glm::mat3(rotateY);
+	float a = 0 * 3.14f / 180.0f;
+	//-------CUP SETUP------------
+	glm::mat4 rotateY = { glm::cos(a),0.0f, glm::sin(a), 0.0f,
+								0.0f, 1.0f, 0.0f, 0.0f,
+								-glm::sin(a), 0.0f, glm::cos(a), 0.0f,
+								0.0f, 0.0f, 0.0f, 1.0f };
 
-		TransformSetup(Program, transform);
+	glm::mat4 scale = { 0.2, 0.0, 0.0, 0.0,
+							0.0, 0.2, 0.0, 0.0,
+							0.0, 0.0, 0.2, 0.0,
+							0.0, 0.0, 0.0, 1.0 };
 
-		float al = angle_light * 3.14f / 180.0f;
+	glm::mat4 translate = glm::translate(glm::mat4(1.f), glm::vec3(4.f, 8.0f, -5.f));
 
-		PointLight light = PointLight();
-		light.ambient = { 0.5f, 0.5f, 0.5f, 1.0f };
-		light.diffuse = { 0.9f, 0.9f, 0.9f, 1.0f };
-		light.specular = { 0.0f, 0.0f, 0.0f, 1.0f };
-		light.attenuation = { 0.7f, 0.1f, 0.0f };
-		light.position = { 7.0f * sin(al), 0.0f, 7.0f * cos(al), 1.0f };
+	glm::mat4 transformMat = scale * rotateY * translate;
 
-		PointLightSetup(Program, light);
+	transform.viewProjection = viewProj;
+	transform.model = transformMat;
+	transform.viewPosition = cameraPosition;
+	transform.normal = glm::mat3(transformMat);
 
-		Material material = Material();
-		material.ambient = { 0.5f, 0.5f, 0.5f, 1.0f };
-		material.diffuse = { 0.8f, 0.8f, 0.8f, 1.0f };
-		material.emission = { 0.0f, 0.0f, 0.0f, 0.0f };
-		material.specular = { 0.1f, 0.1f, 0.1f, 1.0f };
-		material.shininess = 0.0f;
+	TransformSetup(Program, transform);
 
-		MaterialSetup(Program, material);
-	}
+	float al = angle_light * 3.14f / 180.0f;
 
-	if (MODE != 4) {
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)0);
-		glEnableVertexAttribArray(0);
+	PointLight light = PointLight();
+	light.ambient = { 0.8f, 0.8f, 0.8f, 1.0f };
+	light.diffuse = { 0.9f, 0.9f, 0.9f, 1.0f };
+	light.specular = { 0.6f, 0.6f, 0.6f, 1.0f };
+	light.attenuation = { 0.7f, 0.1f, 0.0f };
+	light.position = { 5.0f * sin(al), 4.0f, 5.0f * cos(al), 1.0f };
+	light.lightColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 
-		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
-		glEnableVertexAttribArray(1);
+	PointLightSetup(Program, light);
 
-		glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)(5 * sizeof(GLfloat)));
-		glEnableVertexAttribArray(2);
-	}
-	else {
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)0);
-		glEnableVertexAttribArray(0);
-	}
+	Material material = Material();
+	material.ambient = { 0.5f, 0.5f, 0.5f, 1.0f };
+	material.diffuse = { 0.8f, 0.8f, 0.8f, 1.0f };
+	material.emission = { 0.0f, 0.0f, 0.0f, 0.0f };
+	material.specular = { 1.0f, 1.0f, 1.0f, 1.0f };
+	material.shininess = 16.0f;
 
-	if (MODE != 4) {
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, head_tex);
-		glUniform1i(Unif_texture, 0);
+	MaterialSetup(Program, material);
 
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	}
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)0);
+	glEnableVertexAttribArray(0);
+
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
+	glEnableVertexAttribArray(1);
+
+	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)(5 * sizeof(GLfloat)));
+	glEnableVertexAttribArray(2);
+
+	prepareTexture(cup_tex);
 
 
 	glDrawElements(GL_TRIANGLES, Model_vertices_count, GL_UNSIGNED_INT, 0);
-	// ! Отключаем массив атрибутов
-	//glDisableVertexAttribArray(Attrib_vertex);
-	//glDisableVertexAttribArray(Attrib_texture);
+
+	//------------CHAIR SETUP--------------
+	setupBuffers(vertices_chair);
+
+	transformMat = glm::translate(glm::mat4(1.0f), glm::vec3(-1.5f, 1.0f, 0.0f))
+		* glm::scale(glm::mat4(1.f), glm::vec3(0.3f, 0.3f, 0.3f))
+		* glm::rotate(glm::mat4(1.f), 90.0f, glm::vec3(0.0f, 1.0f, 0.0f));
+
+	transform.model = transformMat;
+	transform.normal = glm::mat3(transformMat);
+
+	TransformSetup(Program, transform);
+	PointLightSetup(Program, light);
+
+	material.specular = { 0.1f, 0.1f, 0.1f, 1.0f };
+	material.shininess = 16.0f;
+	MaterialSetup(Program, material);
+
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)0);
+	glEnableVertexAttribArray(0);
+
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
+	glEnableVertexAttribArray(1);
+
+	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)(5 * sizeof(GLfloat)));
+	glEnableVertexAttribArray(2);
+
+	prepareTexture(chair_tex);
+
+
+	glDrawElements(GL_TRIANGLES, Model_vertices_count, GL_UNSIGNED_INT, 0);
+
+
+	//------TABLE SETUP-----
+	setupBuffers(vertices_table);
+
+	transformMat = glm::translate(glm::mat4(1.0f), glm::vec3(2.0f, -0.5f, 0.0f))
+		* glm::scale(glm::mat4(1.f), glm::vec3(4.f, 4.f, 4.f))
+		* glm::rotate(glm::mat4(1.f), 90.0f, glm::vec3(0.0f, 1.0f, 0.0f));
+
+	transform.model = transformMat;
+	transform.normal = glm::mat3(transformMat);
+
+	TransformSetup(Program, transform);
+	PointLightSetup(Program, light);
+	MaterialSetup(Program, material);
+
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)0);
+	glEnableVertexAttribArray(0);
+
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
+	glEnableVertexAttribArray(1);
+
+	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(GLfloat), (GLvoid*)(5 * sizeof(GLfloat)));
+	glEnableVertexAttribArray(2);
+
+	prepareTexture(wood_tex);
+
+	glDrawElements(GL_TRIANGLES, Model_vertices_count, GL_UNSIGNED_INT, 0);
+
+
+	//------------ SHAR SETUP---------------
 
 	glUseProgram(0);
 
@@ -515,16 +612,22 @@ void keyboardDown(unsigned char key, int x, int y) {
 	switch (key)
 	{
 	case 'a':
-		angle += 1.0;
+		angle_horizontal += 2.0;
 		break;
 	case 'd':
-		angle -= 1.0;
+		angle_horizontal -= 2.0;
+		break;
+	case 'w':
+		angle_vertical += 2.0;
+		break;
+	case 's':
+		angle_vertical -= 2.0;
 		break;
 	case 'q':
-		angle_light += 1.0;
+		angle_light += 2.0;
 		break;
 	case 'e':
-		angle_light -= 1.0;
+		angle_light -= 2.0;
 		break;
 	default:
 		break;
@@ -543,7 +646,7 @@ int main(int argc, char* argv[]) {
 	glutInitDisplayMode(GLUT_DEPTH | GLUT_RGBA | GLUT_ALPHA | GLUT_DOUBLE);
 	glutCreateWindow("OpenGL");
 
-	
+
 
 	GLenum glew_status = glewInit();
 	if (GLEW_OK != glew_status) {
@@ -557,7 +660,8 @@ int main(int argc, char* argv[]) {
 	}
 
 	LoadAUXTextures();
-	setupBuffers();
+	loadModels();
+	setupBuffers(vertices_cup);
 	initShader();
 
 	glutKeyboardFunc(keyboardDown);
