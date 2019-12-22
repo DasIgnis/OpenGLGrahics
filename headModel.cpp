@@ -207,27 +207,6 @@ bool loadModel(const char* path,
 	vertices = result;
 }
 
-bool saveModel(const char* path,
-	std::vector<GLfloat> vertices,
-	std::vector<GLuint> ebo_data,
-	glm::mat4 transform) {
-	std::ofstream myfile;
-	myfile.open(path);
-	for (int i = 0; i < vertices.size(); i++) {
-		if (i % 3 == 0) {
-			glm::vec4 coord = { vertices[i], vertices[i + 1], vertices[i + 2], 1.0 };
-			glm::vec4 newCoord = coord * transform;
-			myfile << "v  " << newCoord.x << " " << newCoord.y << " " << newCoord.z << std::endl;
-		}
-	}
-	for (int i = 0; i < ebo_data.size(); i++) {
-		if (i % 3 == 0) {
-			myfile << "f  " << ebo_data[i] << " " << ebo_data[i + 1] << " " << ebo_data[i + 2] << std::endl;
-		}
-	}
-	return true;
-}
-
 void resizeWindow(int width, int height) {
 	w = width;
 	h = height;
@@ -242,8 +221,8 @@ void checkOpenGLerror() {
 	}
 }
 
-void setupBuffers() {
-	bool res = loadModel("sources\\african_head.obj", vertices);
+void setupBuffers(const char* modelPath) {
+	bool res = loadModel(modelPath, vertices);
 	Model_vertices_count = vertices.size();
 
 	glGenVertexArrays(1, &VAO);
@@ -257,40 +236,6 @@ void setupBuffers() {
 	for (int i = 0; i < Model_vertices_count; i++) {
 		ebo_data.push_back(i);
 	}
-	glGenBuffers(1, &EBO);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, ebo_data.size() * sizeof(GLuint), &ebo_data[0], GL_STATIC_DRAW);
-
-	checkOpenGLerror();
-}
-
-void initBuffers() {
-	vertices = { 0.0, 0.0, 0.0,
-				0.0, 0.5, 0.0,
-				0.5, 0.0, 0.0,
-				0.0, -0.5, 0.1,
-				0.0, 0.0, 0.1, 
-				0.0, 0.0, 0.15, 
-				0.0, 0.0, 0.2,  
-				0.0, 0.0, 0.25, 
-				0.0, 0.0, 0.3,  
-				0.0, 0.0, 0.35, 
-				0.0, 0.0, 0.4,  
-				0.0, 0.0, 0.45
-	};
-
-	Model_vertices_count = vertices.size() / 8;
-
-	glGenVertexArrays(1, &VAO);
-	glBindVertexArray(VAO);
-
-	glGenBuffers(1, &VBO);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), &vertices[0], GL_STATIC_DRAW);
-
-	ebo_data = {
-		0, 1, 2
-	};
 	glGenBuffers(1, &EBO);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, ebo_data.size() * sizeof(GLuint), &ebo_data[0], GL_STATIC_DRAW);
@@ -559,10 +504,6 @@ void keySpecialFunc(int key, int x, int y) {
 	case GLUT_KEY_F4:
 		MODE = 3;
 		break;
-	case GLUT_KEY_F5:
-		MODE = 4;
-		initBuffers();
-		break;
 	default:
 		break;
 	}
@@ -584,12 +525,6 @@ void keyboardDown(unsigned char key, int x, int y) {
 		break;
 	case 'e':
 		angle_light -= 1.0;
-		break;
-	case 'z':
-		saveModel("example.obj", vertices, ebo_data, rotateY);
-		break;
-	case 'x':
-		loadModel("example.obj", vertices);
 		break;
 	default:
 		break;
