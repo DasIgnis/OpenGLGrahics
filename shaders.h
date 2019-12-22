@@ -208,3 +208,22 @@ const char* fsSourceLightingPhongIntColor =
 	"void main() {\n"
 	"	FragColor = color * Color;\n"
 	"}\n";
+
+
+const char* vsSourceDiffColors = 
+	"#version 330\n"
+	"attribute vec3 position;\n"
+	"uniform mat4 model;\n"
+	"out vec4 Color;\n"
+	"void main() {\n"
+	"	Color = "
+	"	gl_Position = model * vec4(position, 1.0);\n"
+	"}\n";
+
+const char* fsSourceDiffColors = 
+	"#version 330\n"
+	"uniform vec4 color;\n"
+	"in vec4 Color;\n"
+	"void main() {\n"
+	"	gl_FragColor = Color;\n"
+	"}\n";
