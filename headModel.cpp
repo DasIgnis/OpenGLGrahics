@@ -341,6 +341,14 @@ void initShader() {
 		glCompileShader(vShader);
 	}
 
+	if (MODE == 4) {
+		glShaderSource(fShader, 1, &fsSourceLightingToonShading, NULL);
+		glCompileShader(fShader);
+
+		glShaderSource(vShader, 1, &vsSourceLightingBlinnPhong, NULL);
+		glCompileShader(vShader);
+	}
+
 	Program = glCreateProgram();
 	glAttachShader(Program, vShader);
 	glAttachShader(Program, fShader);
@@ -593,13 +601,16 @@ void keySpecialFunc(int key, int x, int y) {
 		MODE = 0;
 		break;
 	case GLUT_KEY_F2:
-		MODE = 1;
+		MODE = 2;
 		break;
 	case GLUT_KEY_F3:
-		MODE = 2;
+		MODE = 1;
 		break;
 	case GLUT_KEY_F4:
 		MODE = 3;
+		break;
+	case GLUT_KEY_F5:
+		MODE = 4;
 		break;
 	default:
 		break;
