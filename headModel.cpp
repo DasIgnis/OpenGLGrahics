@@ -337,7 +337,7 @@ void initShader() {
 		glShaderSource(fShader, 1, &fsSourceLightingBlinnPhong, NULL);
 		glCompileShader(fShader);
 
-		glShaderSource(vShader, 1, &vsSourceLightingPhong, NULL);
+		glShaderSource(vShader, 1, &vsSourceLightingBlinnPhong, NULL);
 		glCompileShader(vShader);
 	}
 
